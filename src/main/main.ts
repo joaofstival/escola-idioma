@@ -2,6 +2,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import { writeFile } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { openDb, limparDados } from './db.ts';
@@ -89,6 +90,27 @@ function criarJanela(): void {
   janela.once('ready-to-show', () => janela?.show());
   janela.on('closed', () => { janela = null; });
   void janela.loadFile(INDEX_HTML);
+  if (process.env.ESCOLA_SCREENSHOT) capturarTelas(janela, process.env.ESCOLA_SCREENSHOT);
+}
+
+/**
+ * Modo de verificação (desenvolvimento): ESCOLA_SCREENSHOT=<pasta> ESCOLA_ROTAS="alunos,turmas" npm start
+ * abre cada rota, salva <pasta>/<rota>.png e fecha o app. Use ESCOLA_USERDATA para um banco separado.
+ */
+function capturarTelas(win: BrowserWindow, pasta: string): void {
+  const rotas = (process.env.ESCOLA_ROTAS || 'dashboard').split(',').map((r) => r.trim()).filter(Boolean);
+  win.webContents.once('did-finish-load', async () => {
+    mkdirSync(pasta, { recursive: true });
+    for (const rota of rotas) {
+      await win.webContents.executeJavaScript(`location.hash = ${JSON.stringify('#/' + rota)}`);
+      await new Promise((r) => setTimeout(r, 1200));
+      const img = await win.webContents.capturePage();
+      const nome = rota.replace(/[^a-z0-9_-]+/gi, '_') || 'tela';
+      await writeFile(join(pasta, `${nome}.png`), img.toPNG());
+      console.log(`[screenshot] ${join(pasta, nome + '.png')}`);
+    }
+    app.quit();
+  });
 }
 
 // Bloqueia navegação para fora do app e window.open; links http(s) abrem no navegador padrão.
@@ -104,6 +126,8 @@ app.on('web-contents-created', (_e, contents) => {
   });
   contents.on('will-attach-webview', (event) => event.preventDefault());
 });
+
+if (process.env.ESCOLA_USERDATA) app.setPath('userData', process.env.ESCOLA_USERDATA);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
