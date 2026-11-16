@@ -47,11 +47,15 @@ export type MatriculaStatus = 'ativa' | 'cancelada' | 'concluida';
 export interface Matricula {
   id: number; aluno_id: number; aluno_nome?: string; turma_id: number; turma_nome?: string;
   idioma_nome?: string; nivel?: number; ano_letivo: number; tipo: MatriculaTipo; status: MatriculaStatus; data: string;
+  /** Adições da parte 3 (opcionais): idioma da turma; contagens devolvidas ao criar/cancelar. */
+  idioma_id?: number; mensalidades_geradas?: number; mensalidades_canceladas?: number;
 }
 
 export interface SugestaoRematricula {
   aluno_id: number; aluno_nome: string; matricula_anterior_id: number; idioma_id: number; idioma_nome: string;
   nivel_atual: number; nivel_sugerido: number; turmas_sugeridas: Pick<Turma, 'id' | 'nome' | 'capacidade' | 'ocupacao'>[];
+  /** Parte 3: true se o aluno tem mensalidade em atraso (a rematrícula será recusada com 422). */
+  inadimplente?: boolean;
 }
 
 export type MaterialTipo = 'livro' | 'apostila' | 'audio' | 'video' | 'link' | 'outro';
@@ -62,10 +66,17 @@ export interface Material {
 
 export type MensalidadeStatus = 'pendente' | 'paga' | 'cancelada';
 export interface Mensalidade {
-  id: number; matricula_id: number; aluno_id: number; aluno_nome?: string; idioma_nome?: string;
+  id: number; matricula_id: number; aluno_id: number; aluno_nome?: string; idioma_nome?: string; turma_nome?: string;
   competencia: string; valor: number; vencimento: string; status: MensalidadeStatus;
   atrasada: boolean; dias_atraso: number; multa: number; juros: number; valor_atualizado: number;
   data_pagamento: string | null; valor_pago: number | null; forma_pagamento: string | null;
+}
+
+/** Item de GET /financeiro/inadimplentes (parte 3). Valores em BRL; total = soma dos valores originais. */
+export interface Inadimplente {
+  aluno_id: number; aluno_nome: string; email: string | null; telefone: string | null;
+  qtd: number; total: number; total_atualizado: number; vencimento_mais_antigo: string;
+  dias_max_atraso: number; acima_90_dias: boolean;
 }
 
 export interface HistoricoAluno {
