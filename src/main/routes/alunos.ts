@@ -1,4 +1,4 @@
-// Rotas de alunos. O histórico (GET /alunos/:id/historico) é implementado na parte 3.
+// Rotas de alunos. O histórico (GET /alunos/:id/historico) fica em routes/historico.ts.
 import type { Db } from '../db.ts';
 import type { Router } from '../router.ts';
 import { HttpError } from '../router.ts';
