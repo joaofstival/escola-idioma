@@ -19,3 +19,10 @@
 
 ## Parte 4/8
 - Retomei o Agente Backend para cotação (AwesomeAPI → open.er-api, cache), tradução (MyMemory → Google gtx → dicionário offline) e avaliações configuráveis; conferi typecheck, 78 testes e build; commit e envio das partes 3 e 4.
+
+## Partes 5/8 e 6/8
+- Acrescentei ao `main.ts` um modo de captura de tela (`ESCOLA_SCREENSHOT`, `ESCOLA_ROTAS`, `ESCOLA_USERDATA`) para os agentes verificarem o visual no app real.
+- Disparei em paralelo o Agente Frontend Acadêmico (7 telas) e o Agente Frontend Financeiro (Mensalidades).
+- Revisei as capturas: pedi ao agente financeiro para corrigir botões cortados a 1280 px e a divergência "4 × 5 inadimplentes" (era diferença de período, agora explícita nos rótulos).
+- Extraí os helpers comuns das telas de `pages/dashboard.ts` para `src/renderer/comum.ts`.
+- A pedido do usuário, commits feitos como `LuisMagrin` e divididos por tela (10 commits) e enviados por essa conta.
