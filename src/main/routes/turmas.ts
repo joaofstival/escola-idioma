@@ -1,5 +1,5 @@
 // Rotas de turmas. Regras: nível inteiro 1–12, capacidade ≥ 1 e professor habilitado no idioma da turma.
-// GET /turmas/:id/materiais é implementado na parte 3.
+// GET /turmas/:id/materiais fica em routes/materiais.ts.
 import type { Db } from '../db.ts';
 import type { Router } from '../router.ts';
 import { HttpError } from '../router.ts';
