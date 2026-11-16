@@ -5,15 +5,19 @@ import * as idiomas from './routes/idiomas.ts';
 import * as alunos from './routes/alunos.ts';
 import * as professores from './routes/professores.ts';
 import * as turmas from './routes/turmas.ts';
+import * as matriculas from './routes/matriculas.ts';
+import * as materiais from './routes/materiais.ts';
+import * as mensalidades from './routes/mensalidades.ts';
+import * as historico from './routes/historico.ts';
+import * as dashboard from './routes/dashboard.ts';
 
 /** Módulo de rotas: um arquivo por recurso em routes/, cada um exporta register(router, db). */
 export interface RouteModule { register(router: Router, db: Db): void }
 
 /**
- * Recursos registrados. Partes 3 e 4 acrescentam aqui: matriculas, materiais, mensalidades/financeiro,
- * dashboard, cotacao, traducao e avaliacoes.
+ * Recursos registrados. A parte 4 acrescenta aqui: cotacao, traducao e avaliacoes.
  */
-export const MODULOS: RouteModule[] = [idiomas, alunos, professores, turmas];
+export const MODULOS: RouteModule[] = [idiomas, alunos, professores, turmas, matriculas, materiais, mensalidades, historico, dashboard];
 
 export function createApi(db: Db, modulos: RouteModule[] = MODULOS): Router {
   const router = new Router();

@@ -1,6 +1,7 @@
 // Dados de exemplo. A seed só popula banco vazio (idempotente). `--seed` limpa e recria (ver main.ts).
-// Parte 3 estende com matrículas, materiais e mensalidades (ver o ponto marcado em seed()).
+// A parte 3 acrescenta matrículas, mensalidades e materiais via ETAPAS_EXTRAS (seed-academico.ts).
 import type { Db } from './db.ts';
+import { seedMateriais, seedMatriculas } from './seed-academico.ts';
 
 export interface IdiomaSeed { nome: string; codigo: string; mensalidade: number }
 export interface ProfessorSeed { nome: string; email: string; telefone: string; idiomas: string[] }
@@ -137,9 +138,9 @@ export function seedCadastros(db: Db, anoAtual: number): SeedContexto {
   return ctx;
 }
 
-/** Etapas extras da seed (partes 3 e 4 acrescentam matrículas, materiais, mensalidades, avaliações). */
+/** Etapas extras da seed. Parte 3: matrículas + mensalidades e materiais. A parte 4 acrescenta avaliações. */
 export type EtapaSeed = (db: Db, ctx: SeedContexto) => void;
-export const ETAPAS_EXTRAS: EtapaSeed[] = [];
+export const ETAPAS_EXTRAS: EtapaSeed[] = [seedMatriculas, seedMateriais];
 
 /** Popula o banco com dados de exemplo, somente se estiver vazio. */
 export function seed(db: Db, opts: SeedOptions = {}): SeedResultado {
@@ -150,7 +151,6 @@ export function seed(db: Db, opts: SeedOptions = {}): SeedResultado {
   const anoAtual = opts.anoAtual ?? new Date().getFullYear();
   db.transaction(() => {
     const ctx = seedCadastros(db, anoAtual);
-    // Parte 3: matrículas do ano anterior/atual, materiais e mensalidades entram aqui via ETAPAS_EXTRAS.
     for (const etapa of ETAPAS_EXTRAS) etapa(db, ctx);
   });
   return { populado: true, contagem: contar() };

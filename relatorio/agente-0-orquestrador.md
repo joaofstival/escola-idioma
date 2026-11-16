@@ -11,3 +11,8 @@
 
 ## Parte 2/8
 - Disparei o Agente Backend com o escopo do núcleo (banco sql.js, roteador IPC, janela Electron, seed, CRUD de idiomas/alunos/professores/turmas e testes), revisei a entrega e fiz o commit.
+- Enviei as partes 1 e 2 ao GitHub pela conta dona (joaofstival), voltando depois a conta ativa do `gh`.
+
+## Parte 3/8
+- A pedido do usuário, os commits passam a usar a identidade global do git (removi o autor local do repositório).
+- Disparei o Agente Backend para matrículas/rematrículas, materiais, financeiro, histórico e painel; conferi typecheck, 49 testes e build; commit.
