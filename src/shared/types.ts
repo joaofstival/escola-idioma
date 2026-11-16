@@ -95,9 +95,17 @@ export interface Dashboard {
   receita_mes: number; a_receber_mes: number; inadimplentes: number; ano: number;
 }
 
-export interface Cotacao { moeda: string; nome?: string; valor_em_brl: number; brl_em_moeda: number; atualizado_em: string }
-export interface CotacaoResposta { base: 'BRL'; fonte: string; data: string; cotacoes: Record<string, Cotacao> }
-export interface Conversao { valor: number; de: string; para: string; resultado: number; taxa: number; fonte: string; data: string }
+export interface Cotacao {
+  moeda: string; nome?: string; valor_em_brl: number; brl_em_moeda: number; atualizado_em: string;
+  /** Adições da parte 4 (opcionais): variação do dia em % (só AwesomeAPI), fonte da cotação e se veio de cache vencido. */
+  variacao_pct?: number | null; fonte?: string; desatualizada?: boolean;
+}
+export interface CotacaoResposta {
+  base: 'BRL'; fonte: string; data: string; cotacoes: Record<string, Cotacao>;
+  /** Parte 4: true se alguma cotação veio do cache vencido (até 72 h); moedas inexistentes; moedas sem cotação no momento. */
+  desatualizada?: boolean; invalidas?: string[]; indisponiveis?: string[];
+}
+export interface Conversao { valor: number; de: string; para: string; resultado: number; taxa: number; fonte: string; data: string; desatualizada?: boolean }
 export interface Traducao { texto: string; traducao: string; de: string; para: string; fonte: string; alternativas?: string[] }
 
 // ---------- Avaliação configurável (ver PLANO.md, seção 1) ----------
@@ -139,7 +147,10 @@ export interface ResultadoPergunta {
   question_id: string; type: QuestionType; title: string; respostas: number; com_porque: number;
   opcoes?: { option_id: string; label: string; count: number; percent: number }[];
   media?: number | null; distribuicao?: { valor: number; count: number }[];
-  linhas?: { row_id: string; label: string; opcoes: { option_id: string; label: string; count: number; percent: number }[] }[];
+  linhas?: { row_id: string; label: string; opcoes: { option_id: string; label: string; count: number; percent: number }[]; media?: number | null }[];
   textos?: { aluno_nome: string; texto: string }[];
 }
 export interface ResultadosAvaliacao { avaliacao_id: number; total_respostas: number; nota_media: number | null; perguntas: ResultadoPergunta[] }
+
+/** Parte 4: GET /avaliacoes/:id/exportar (o renderer grava com window.escola.saveFile). */
+export interface ExportacaoCsv { nome_arquivo: string; csv: string }
