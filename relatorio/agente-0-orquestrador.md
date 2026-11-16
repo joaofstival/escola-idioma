@@ -16,3 +16,6 @@
 ## Parte 3/8
 - A pedido do usuário, os commits passam a usar a identidade global do git (removi o autor local do repositório).
 - Disparei o Agente Backend para matrículas/rematrículas, materiais, financeiro, histórico e painel; conferi typecheck, 49 testes e build; commit.
+
+## Parte 4/8
+- Retomei o Agente Backend para cotação (AwesomeAPI → open.er-api, cache), tradução (MyMemory → Google gtx → dicionário offline) e avaliações configuráveis; conferi typecheck, 78 testes e build; commit e envio das partes 3 e 4.

@@ -187,3 +187,160 @@ Também passaram: `npm run typecheck` (sem erros) e `npm run build` (`dist/main.
 - A conversão da mensalidade para a moeda do aluno (`moeda_origem`) pode reaproveitar `GET /mensalidades?aluno_id=` e `valor_atualizado`.
 - Valores fixos em `services/financeiro.ts`: dia de vencimento 10, multa de 2% e juros de 1% a.m. Se for preciso torná-los configuráveis, criar uma tabela de configurações (migração `CREATE TABLE IF NOT EXISTS` e `SCHEMA_VERSION` 2).
 - Nos testes de rota, `definirHoje()` é global por processo; o `node --test` roda cada arquivo num processo, então não há interferência entre arquivos.
+
+## Parte 4/8
+
+### Objetivo
+Integrações externas (cotação e tradução, com cache, fallback e timeout, testáveis sem internet) e o módulo de avaliações configuráveis (validação do formulário, modelos prontos, trava, duplicar, respostas com nota, resultados e CSV), com seed e testes.
+
+### Arquivos
+| Arquivo | Conteúdo |
+|---|---|
+| `src/main/services/http.ts` | `FetchFn` (fetch injetável), `obterJson()` com timeout de 5 s (aborta e rejeita mesmo que o fetch ignore o sinal), `FalhaExterna` |
+| `src/main/services/cotacao.ts` | `ServicoCotacao({fetch, agora, timeoutMs})`: `cotacoes(moedas)` e `converter(valor, de, para)`, mais `lerMoedas()`, `MOEDAS_PADRAO` e `NOMES_MOEDAS` |
+| `src/main/services/traducao.ts` | `ServicoTraducao({fetch, agora, timeoutMs, email})`: `traduzir()` e `validarPedido()` |
+| `src/main/data/dicionario.ts` | Dicionário offline com 104 entradas em pt/en/es/fr/de/it (escola, cotidiano, expressões, números, cores, dias e meses) e `consultarDicionario()`, que ignora maiúsculas e acentos e aceita qualquer par entre os 6 idiomas |
+| `src/main/services/avaliacao.ts` | Funções puras: `validarForm`, `validarRespostas` (itens + nota), `montarAnswers`, `calcularResultados`, `gerarCsv`, `celulaCsv`, `nomeArquivoCsv` |
+| `src/main/data/modelos-avaliacao.ts` | `MODELOS_AVALIACAO` (4 modelos), `OPCOES_PRONTAS` (Excelente→Precisa melhorar, Concordo→Discordo, Sempre→Nunca, Sim/Não) e `COMPETENCIAS` |
+| `src/main/routes/cotacao.ts`, `routes/traducao.ts` | Rotas. `criarRotasCotacao(servico)` e `criarRotasTraducao(servico)` permitem injetar serviços com fetch falso; o app usa as instâncias `servicoCotacao` e `servicoTraducao` |
+| `src/main/routes/avaliacoes.ts` | Rotas e helpers reutilizados pela seed: `criarAvaliacao`, `responderAvaliacao`, `listarRespostas`, `resultadosAvaliacao`, `exportarAvaliacao` |
+| `src/main/seed-avaliacoes.ts` | Etapa `seedAvaliacoes` (registrada em `ETAPAS_EXTRAS`) |
+| `src/main/services/fetch-falso.ts` | Fetch falso dos testes (não entra no bundle) |
+| `src/main/app.ts` | `MODULOS` passa a incluir cotacao, traducao e avaliacoes: todos os recursos da seção 4 |
+| Testes | `services/{cotacao,traducao,avaliacao}.test.ts`, `routes/avaliacoes.test.ts`; `seed.test.ts` ganhou um teste |
+
+### Rotas
+| Recurso | Rotas |
+|---|---|
+| Cotação | `GET /cotacao?moedas=USD,EUR` (sem `moedas`, usa as padrão USD, EUR, GBP, ARS, CLP, JPY, CAD, CHF, CNY e PYG) → `CotacaoResposta`; `GET /cotacao/converter?valor=&de=&para=` → `Conversao` (`de` padrão BRL; `valor` aceita vírgula) |
+| Tradução | `GET /traducao?texto=&de=&para=` → `Traducao` (`de` padrão pt) |
+| Avaliações | `GET /avaliacoes?turma_id=`, `GET /avaliacoes/modelos`, `POST /avaliacoes` (201; aceita `form` ou `modelo_id`), `GET/PUT/DELETE /avaliacoes/:id`, `POST /avaliacoes/:id/duplicar` (201; corpo opcional `{turma_id?, titulo?}`), `POST /avaliacoes/:id/respostas` (201), `GET /avaliacoes/:id/respostas`, `GET /avaliacoes/:id/resultados`, `GET /avaliacoes/:id/exportar` → `{nome_arquivo, csv}` |
+
+### Regras implementadas
+- **Cotação**:
+  - **Fontes**:
+    - a AwesomeAPI é consultada num único lote (`/json/last/USD-BRL,EUR-BRL`);
+    - se o lote vier com 404 `CoinNotExists` (um par inválido derruba o lote), a consulta é refeita **par a par**, para que uma moeda inválida não derrube as outras;
+    - o que não se resolve vai para o open.er-api (`valor_em_brl = 1/rates.X`, `variacao_pct = null`).
+  - **Cache**:
+    - em memória, por moeda, com TTL de 1 h;
+    - se as duas fontes falharem, usa o cache vencido de até 72 h, marcado com `desatualizada: true` na cotação e na resposta.
+  - **Respostas com problema**:
+    - moedas que nenhuma fonte reconhece vão para `invalidas[]`; se todas as pedidas forem inválidas, 422;
+    - moedas sem fonte e sem cache vão para `indisponiveis[]`; se nada se resolver, 503 com a mensagem da pesquisa.
+  - **Validação**: código ISO de 3 letras (senão 422), sem duplicatas, no máximo 30 moedas.
+  - **Campos e datas**:
+    - BRL vale sempre 1 (`fonte: 'fixo'`);
+    - `fonte` lista as fontes usadas, separadas por vírgula;
+    - `data` é a mais recente entre as cotações; o `create_date` da AwesomeAPI vira ISO com -03:00.
+  - **Conversão**:
+    - cruza por BRL: `taxa = brl(de)/brl(para)`;
+    - `resultado` com 4 casas e `taxa` com 8;
+    - responde 422 se o valor não for número ou for negativo, ou se a moeda for inválida ou inexistente;
+    - responde 503 se uma das moedas estiver indisponível.
+- **Tradução**:
+  - **Ordem das fontes**: cache em memória (30 dias, chave `de|para|texto` em minúsculas, até 5.000 entradas, `fonte: 'cache'`) → MyMemory → Google gtx → dicionário offline → 503 com a mensagem da pesquisa.
+  - **MyMemory**:
+    - só aceita `responseStatus === 200` e `quotaFinished !== true`;
+    - descarta "MYMEMORY WARNING" e HTTP 429;
+    - `MYMEMORY_EMAIL` (variável de ambiente) entra como `&de=`;
+    - devolve até 3 `alternativas` tiradas de `matches`.
+  - **Google gtx**: junta os segmentos de `json[0]`.
+  - **Dicionário**: o resultado não vai para o cache, para que a API volte a ser consultada quando sair do ar.
+  - **Validação** (senão 422):
+    - texto obrigatório e com até 500 **bytes** em UTF-8;
+    - `de` e `para` entre pt, en, es, fr, it, de, ja e zh.
+  - **Mesmo idioma**: devolve o próprio texto com `fonte: 'original'`, sem acessar a rede.
+- **Avaliações: formulário**. A validação devolve 422 com todos os `detalhes`:
+  - **Estrutura**:
+    - de 1 a 20 perguntas, pelo menos 1 obrigatória;
+    - ids de pergunta únicos, e ids únicos de opção e de linha dentro da pergunta;
+    - tipo entre os 5 e título obrigatório (até 300 caracteres).
+  - **Opções e escala**:
+    - de 2 a 10 opções em single, multiple e grid, e de 1 a 10 linhas na grid;
+    - escala 1–5, 1–10 ou 0–10, com `style` stars ou numbers.
+  - **Campos que dependem do tipo**:
+    - `countsInScore` só em single, rating e grid, e exige `points` (0 a 10) em todas as opções, para a nota ser calculável;
+    - `askReason` só em single e rating;
+    - `reasonOn` só com ids de opções existentes; `reasonOnMax` dentro da escala;
+    - `maxChoices` de 1 ao número de opções; `maxChars` de 1 a 5.000;
+    - o id de opção `other` é reservado para o "Outro" de múltipla escolha com `allowOther`.
+  - O form é **normalizado** (campos que não se aplicam ao tipo são descartados) e gravado assim.
+- **Modelos prontos** (todos passam na validação):
+  - Padrão: nota de 1 a 10 + comentário;
+  - Avaliação de nível do aluno: grade com as 6 competências e opções Excelente/Bom/Regular/Precisa melhorar = 10/7,5/5/2,5; recomendação com porquê ao "repetir"; observações;
+  - Feedback do aluno sobre a turma;
+  - Autoavaliação.
+- **Trava**:
+  - com respostas, o PUT só altera título e descrição. Mudar `form` (comparado depois de normalizado), `turma_id` ou `modelo_id` devolve 422 "Avaliação travada: já possui respostas. Duplique para alterar."; reenviar o mesmo form é aceito;
+  - DELETE com respostas responde 422;
+  - duplicar cria "Cópia de <título>", sem respostas.
+- **Respostas**:
+  - o aluno precisa ter matrícula **ativa** na turma e responder uma vez só; senão, 422;
+  - **validação**:
+    - pergunta inexistente ou respondida duas vezes;
+    - obrigatórias respondidas; na grade obrigatória, todas as linhas;
+    - opção existente, `maxChoices` e "Outro" com texto;
+    - nota inteira dentro da escala e `maxChars` respeitado;
+  - **porquê**: guardado só quando pedido (opção em `reasonOn`, ou `reasonOn` vazio; nota ≤ `reasonOnMax`, ou null) e descartado nos outros casos; é obrigatório quando pedido em pergunta obrigatória;
+  - **gravação**: uma linha por valor em `avaliacao_resposta_itens`; a multiple gera uma linha por opção;
+  - **nota**: média 0–10 das perguntas com `countsInScore`; rating = `(v-min)/(max-min)*10`, single = pontos da opção, grid = média dos pontos das linhas; null se nenhuma conta; gravada em `avaliacao_respostas.score`.
+- **Resultados**:
+  - contagem e % por opção (multiple inclui "Outro"; o % é sobre quem respondeu);
+  - em rating, média na escala original e distribuição valor a valor;
+  - na grade, contagem por linha e `media` por linha (pontos); campo opcional novo;
+  - `textos` traz as respostas abertas, os porquês e os textos de "Outro"; também há `com_porque`, `respostas` e `nota_media` (média dos scores).
+- **CSV**:
+  - layout:
+    - separador `;` e linhas terminadas em `\r\n`;
+    - colunas Aluno, Data (dd/mm/aaaa hh:mm) e Nota;
+    - uma coluna por pergunta (na grade, uma por linha) e uma "(porquê)" para cada pergunta com `askReason`;
+  - formatação e escape:
+    - números com vírgula decimal (Excel pt-BR);
+    - células com `;`, aspas ou quebra de linha ficam entre aspas, com as aspas duplicadas;
+    - textos que começam com `= + - @` ganham `'`, para não virarem fórmula;
+  - o nome do arquivo segue o formato `avaliacao-<id>-<slug>.csv`. O BOM é acrescentado pelo `file:save` do main.
+- **Seed**:
+  - "Avaliação de nível - Inglês 1 - Manhã (ano atual)", feita a partir do modelo `nivel`, com respostas de João Pedro, Larissa e Valentina; a de Valentina pede "repetir", com porquê;
+  - "Feedback da turma - Espanhol 1 - Tarde", feita a partir do modelo `feedback`, sem respostas e editável.
+
+### Adições em `src/shared/types.ts` (opcionais ou novas, compatíveis)
+- `Cotacao`: `variacao_pct?`, `fonte?`, `desatualizada?`.
+- `CotacaoResposta`: `desatualizada?`, `invalidas?`, `indisponiveis?`.
+- `Conversao`: `desatualizada?`.
+- `ResultadoPergunta.linhas[]`: `media?`.
+- Novo `ExportacaoCsv { nome_arquivo, csv }`.
+
+### Testes
+`npm test`: **78 testes, 78 passaram, 0 falharam**: 49 das partes anteriores e 29 novos. Nenhum acessa a internet; todos usam fetch falso.
+- `cotacao` (7):
+  - validação 422;
+  - AwesomeAPI em lote e cache de 1 h;
+  - moeda inválida isolada par a par (`invalidas`, 422 quando todas são inválidas);
+  - fallback para o er-api (1/rates) por falha ou moeda ausente;
+  - timeout real de 50 ms;
+  - cache vencido com `desatualizada` até 72 h e 503 depois disso;
+  - rotas de cotação e conversão (200, 422 e 503).
+- `traducao` (6):
+  - 422 (vazio, 500 bytes contados em bytes, idioma);
+  - MyMemory com e-mail, cache de 30 dias e vencimento;
+  - 6 formas de falha do MyMemory (403 disfarçado, cota, warning, 429, erro de rede, timeout) caindo no Google;
+  - dicionário em qualquer par e 503;
+  - mesmo idioma sem rede;
+  - rota.
+- `avaliacao` (11): cada regra de validação do form, modelos válidos e normalização, respostas (todas as regras), nota, resultados e CSV com escape.
+- `avaliacoes` (4): CRUD e modelos, respostas (matrícula ativa, duplicidade, 422 e nota), trava, DELETE, duplicar, resultados e exportação.
+- `seed` (+1): avaliação com respostas e avaliação livre.
+
+Também passaram: `npm run typecheck` (sem erros) e `npm run build` (`dist/main.js` com 161 KB).
+
+**Teste manual com a rede real**, feito uma vez fora da suíte:
+- **Cotação**: a AwesomeAPI devolveu USD 5,7838, EUR 6,3616 e PYG 0,000889, e `XYZ` foi para `invalidas`.
+- **Tradução**: o MyMemory devolveu `livro` → "book". Para `bom dia` (pt→es), devolveu "buen jim", e "Buenos días" veio só em `alternativas`. É o problema de qualidade já apontado na pesquisa, e a tela pode exibir as alternativas.
+
+### Pendências para as próximas partes
+- **Frontend**:
+  - **Exportar**: chamar `GET /avaliacoes/:id/exportar` e depois `window.escola.saveFile(nome_arquivo, csv)`.
+  - **Cotação**: na tela, mostrar a atribuição "Rates By Exchange Rate API" quando `fonte` incluir `exchangerate-api`, e avisar quando `desatualizada` for true.
+  - **Avaliações**: o id `other` identifica o "Outro" da múltipla escolha. As respostas de multiple usam `option_ids` + `value_text`, e as de grade usam uma `Answer` por linha (`row_id` + `option_id`).
+- **Cache de tradução**: fica só em memória e se perde ao fechar o app. Se for preciso persistir, criar a tabela `traducoes_cache` (`CREATE TABLE IF NOT EXISTS`, `SCHEMA_VERSION` 2).

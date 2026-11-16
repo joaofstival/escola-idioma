@@ -2,6 +2,7 @@
 // A parte 3 acrescenta matrículas, mensalidades e materiais via ETAPAS_EXTRAS (seed-academico.ts).
 import type { Db } from './db.ts';
 import { seedMateriais, seedMatriculas } from './seed-academico.ts';
+import { seedAvaliacoes } from './seed-avaliacoes.ts';
 
 export interface IdiomaSeed { nome: string; codigo: string; mensalidade: number }
 export interface ProfessorSeed { nome: string; email: string; telefone: string; idiomas: string[] }
@@ -138,9 +139,9 @@ export function seedCadastros(db: Db, anoAtual: number): SeedContexto {
   return ctx;
 }
 
-/** Etapas extras da seed. Parte 3: matrículas + mensalidades e materiais. A parte 4 acrescenta avaliações. */
+/** Etapas extras da seed: matrículas + mensalidades e materiais (parte 3) e avaliações (parte 4). */
 export type EtapaSeed = (db: Db, ctx: SeedContexto) => void;
-export const ETAPAS_EXTRAS: EtapaSeed[] = [seedMatriculas, seedMateriais];
+export const ETAPAS_EXTRAS: EtapaSeed[] = [seedMatriculas, seedMateriais, seedAvaliacoes];
 
 /** Popula o banco com dados de exemplo, somente se estiver vazio. */
 export function seed(db: Db, opts: SeedOptions = {}): SeedResultado {

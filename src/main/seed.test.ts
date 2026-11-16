@@ -85,3 +85,26 @@ test('seed da parte 3: matrículas, mensalidades, inadimplentes, sugestões e ma
   assert.equal(d.matriculas_ano, porAno['2026|ativa']);
   definirHoje(null);
 });
+
+test('seed da parte 4: avaliação de nível com respostas e uma avaliação sem respostas', async () => {
+  const { definirHoje } = await import('./services/financeiro.ts');
+  const { RESPOSTAS_NIVEL } = await import('./seed-avaliacoes.ts');
+  definirHoje('2026-11-16');
+  const db = await openDb();
+  seed(db, { anoAtual: 2026 });
+  const api = createApi(db);
+  const get = async (path: string) => ((await api.handle({ method: 'GET', path })) as any).data;
+  const avs = await get('/avaliacoes');
+  assert.equal(avs.length, 2);
+  const nivel = avs.find((a: any) => a.travada);
+  const livre = avs.find((a: any) => !a.travada);
+  assert.equal(nivel.total_respostas, RESPOSTAS_NIVEL.length);
+  assert.equal(nivel.form.questions[0].type, 'grid');
+  assert.equal(livre.total_respostas, 0);
+  const res = await get(`/avaliacoes/${nivel.id}/resultados`);
+  assert.ok(res.nota_media > 0 && res.nota_media <= 10);
+  assert.equal(res.perguntas[1].com_porque, 1);
+  const exp = await get(`/avaliacoes/${nivel.id}/exportar`);
+  assert.equal(exp.csv.trim().split('\r\n').length, 1 + RESPOSTAS_NIVEL.length);
+  definirHoje(null);
+});
