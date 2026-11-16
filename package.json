@@ -1,0 +1,28 @@
+{
+  "name": "escola-idioma",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema desktop de gestão de escola de idiomas (Electron + TypeScript)",
+  "main": "dist/main.js",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "npm run build && electron .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "seed": "npm run build && electron . --seed"
+  },
+  "dependencies": {
+    "sql.js": "1.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/sql.js": "1.4.11",
+    "electron": "45.3.3",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
