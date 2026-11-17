@@ -4,10 +4,24 @@ import { encargosEm, escalaEixo, gerarCsv, hojeLocal, statusExibido } from './fi
 import type { Mensalidade } from '../../shared/types.ts';
 
 const base: Mensalidade = {
-  id: 1, matricula_id: 1, aluno_id: 1, aluno_nome: 'Maria', idioma_nome: 'Inglês', turma_nome: 'T1',
-  competencia: '2026-03', valor: 300, vencimento: '2026-03-10', status: 'pendente',
-  atrasada: false, dias_atraso: 0, multa: 0, juros: 0, valor_atualizado: 300,
-  data_pagamento: null, valor_pago: null, forma_pagamento: null,
+  id: 1,
+  matricula_id: 1,
+  aluno_id: 1,
+  aluno_nome: 'Maria',
+  idioma_nome: 'Inglês',
+  turma_nome: 'T1',
+  competencia: '2026-03',
+  valor: 300,
+  vencimento: '2026-03-10',
+  status: 'pendente',
+  atrasada: false,
+  dias_atraso: 0,
+  multa: 0,
+  juros: 0,
+  valor_atualizado: 300,
+  data_pagamento: null,
+  valor_pago: null,
+  forma_pagamento: null,
 };
 
 test('encargosEm: até o vencimento não cobra multa nem juros', () => {

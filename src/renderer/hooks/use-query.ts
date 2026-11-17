@@ -8,25 +8,34 @@ export interface QueryState<T> {
   reload: () => void;
 }
 
-/** Busca simples: carregando / erro / recarregar, sem biblioteca. Refaz quando `deps` muda. */
+interface Resultado<T> {
+  chave: string;
+  data?: T;
+  error?: Error;
+}
+
+/** Busca simples: carregando / erro / recarregar, sem biblioteca. Refaz quando `deps` (valores simples) muda. */
 export function useQuery<T>(fn: () => Promise<T>, deps: readonly unknown[]): QueryState<T> {
-  const [state, setState] = useState<{ data?: T; error?: Error; loading: boolean }>({ loading: true });
   const [tick, setTick] = useState(0);
+  const [res, setRes] = useState<Resultado<T>>({ chave: '' });
   const fnRef = useRef(fn);
-  fnRef.current = fn;
+  useEffect(() => {
+    fnRef.current = fn;
+  });
+  const chave = JSON.stringify([...deps, tick]);
 
   useEffect(() => {
     let vivo = true;
-    setState((s) => ({ data: s.data, loading: true }));
     fnRef.current().then(
-      (data) => vivo && setState({ data, loading: false }),
-      (error: unknown) => vivo && setState({ error: error instanceof Error ? error : new Error(String(error)), loading: false }),
+      (data) => vivo && setRes({ chave, data }),
+      (error: unknown) => vivo && setRes({ chave, error: error instanceof Error ? error : new Error(String(error)) }),
     );
     return () => {
       vivo = false;
     };
-  }, [...deps, tick]);
+  }, [chave]);
 
   const reload = useCallback(() => setTick((t) => t + 1), []);
-  return { data: state.data, error: state.error, loading: state.loading, reload };
+  const atual = res.chave === chave;
+  return { data: res.data, error: atual ? res.error : undefined, loading: !atual, reload };
 }

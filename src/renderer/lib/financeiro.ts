@@ -15,10 +15,15 @@ export const FORMAS_PAGAMENTO = [
 ] as const;
 
 const ROTULO_FORMA: Record<string, string> = {
-  pix: 'PIX', cartao: 'Cartão', cartao_credito: 'Cartão de crédito', cartao_debito: 'Cartão de débito',
-  boleto: 'Boleto', dinheiro: 'Dinheiro', transferencia: 'Transferência',
+  pix: 'PIX',
+  cartao: 'Cartão',
+  cartao_credito: 'Cartão de crédito',
+  cartao_debito: 'Cartão de débito',
+  boleto: 'Boleto',
+  dinheiro: 'Dinheiro',
+  transferencia: 'Transferência',
 };
-export const rotuloForma = (f: string | null | undefined): string => (f ? ROTULO_FORMA[f] ?? f : '—');
+export const rotuloForma = (f: string | null | undefined): string => (f ? (ROTULO_FORMA[f] ?? f) : '—');
 
 export const arredondar = (v: number): number => Math.round((v + Number.EPSILON) * 100) / 100;
 
@@ -52,7 +57,12 @@ export function statusExibido(m: Pick<Mensalidade, 'status' | 'atrasada'>): Stat
   if (m.status === 'cancelada') return 'cancelada';
   return m.atrasada ? 'atrasada' : 'pendente';
 }
-export const ROTULO_STATUS: Record<StatusExibido, string> = { paga: 'Paga', cancelada: 'Cancelada', atrasada: 'Atrasada', pendente: 'Em aberto' };
+export const ROTULO_STATUS: Record<StatusExibido, string> = {
+  paga: 'Paga',
+  cancelada: 'Cancelada',
+  atrasada: 'Atrasada',
+  pendente: 'Em aberto',
+};
 
 // ---------- CSV ----------
 function celulaCsv(v: unknown): string {
@@ -63,13 +73,37 @@ function celulaCsv(v: unknown): string {
 const numCsv = (n: number | null | undefined) => (n === null || n === undefined ? '' : n.toFixed(2).replace('.', ','));
 
 export function gerarCsv(lista: Mensalidade[]): string {
-  const cab = ['Aluno', 'Idioma', 'Turma', 'Competência', 'Vencimento', 'Valor', 'Status', 'Dias de atraso', 'Multa', 'Juros',
-    'Valor atualizado', 'Data do pagamento', 'Valor pago', 'Forma de pagamento'];
+  const cab = [
+    'Aluno',
+    'Idioma',
+    'Turma',
+    'Competência',
+    'Vencimento',
+    'Valor',
+    'Status',
+    'Dias de atraso',
+    'Multa',
+    'Juros',
+    'Valor atualizado',
+    'Data do pagamento',
+    'Valor pago',
+    'Forma de pagamento',
+  ];
   const linhas = lista.map((m) => [
-    m.aluno_nome, m.idioma_nome, m.turma_nome, fmtCompetencia(m.competencia), fmtData(m.vencimento), numCsv(m.valor),
-    ROTULO_STATUS[statusExibido(m)], m.atrasada ? m.dias_atraso : '', numCsv(m.multa), numCsv(m.juros),
+    m.aluno_nome,
+    m.idioma_nome,
+    m.turma_nome,
+    fmtCompetencia(m.competencia),
+    fmtData(m.vencimento),
+    numCsv(m.valor),
+    ROTULO_STATUS[statusExibido(m)],
+    m.atrasada ? m.dias_atraso : '',
+    numCsv(m.multa),
+    numCsv(m.juros),
     m.status === 'cancelada' ? '' : numCsv(m.valor_atualizado),
-    m.data_pagamento ? fmtData(m.data_pagamento) : '', numCsv(m.valor_pago), m.forma_pagamento ? rotuloForma(m.forma_pagamento) : '',
+    m.data_pagamento ? fmtData(m.data_pagamento) : '',
+    numCsv(m.valor_pago),
+    m.forma_pagamento ? rotuloForma(m.forma_pagamento) : '',
   ]);
   return [cab, ...linhas].map((l) => l.map(celulaCsv).join(';')).join('\r\n') + '\r\n';
 }
