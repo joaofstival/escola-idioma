@@ -1,8 +1,10 @@
 // Acesso HTTP dos serviços externos com timeout. O `fetch` é injetável para os testes não usarem a rede.
 
 /** Subconjunto do fetch usado pelos serviços (o fetch global é compatível; os testes passam um falso). */
-export type FetchFn = (url: string, init?: { signal?: AbortSignal; headers?: Record<string, string> }) =>
-  Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+export type FetchFn = (
+  url: string,
+  init?: { signal?: AbortSignal; headers?: Record<string, string> },
+) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
 
 export const TIMEOUT_PADRAO_MS = 5000;
 
@@ -26,7 +28,11 @@ export function fetchPadrao(): FetchFn {
  * GET com timeout (aborta a requisição e rejeita mesmo que o fetch ignore o sinal).
  * Devolve { status, corpo }; não lança em HTTP 4xx/5xx para o chamador poder ler o corpo de erro.
  */
-export async function obterJson(fetchFn: FetchFn, url: string, timeoutMs = TIMEOUT_PADRAO_MS): Promise<{ status: number; ok: boolean; corpo: unknown }> {
+export async function obterJson(
+  fetchFn: FetchFn,
+  url: string,
+  timeoutMs = TIMEOUT_PADRAO_MS,
+): Promise<{ status: number; ok: boolean; corpo: unknown }> {
   const ctrl = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const limite = new Promise<never>((_, rej) => {

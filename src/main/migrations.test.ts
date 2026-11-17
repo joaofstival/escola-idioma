@@ -13,7 +13,11 @@ const FIXTURE_V1 = fileURLToPath(new URL('./fixtures/escola-v1-antigo.db', impor
 
 async function comPasta(fn: (dir: string) => Promise<void>): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), 'escola-mig-'));
-  try { await fn(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try {
+    await fn(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 function contar(file: string): Record<string, number> {
@@ -22,7 +26,9 @@ function contar(file: string): Record<string, number> {
     const out: Record<string, number> = {};
     for (const t of TABELAS) out[t] = Number((d.prepare(`SELECT count(*) AS n FROM ${t}`).get() as { n: number }).n);
     return out;
-  } finally { d.close(); }
+  } finally {
+    d.close();
+  }
 }
 
 const versao = (db: { get<T>(s: string): T | undefined }) => db.get<{ user_version: number }>('PRAGMA user_version')!.user_version;
@@ -54,7 +60,10 @@ test('migration pendente em arquivo existente: copia antes (pre-migracao-v<N>) e
   await comPasta(async (dir) => {
     const file = join(dir, 'escola.db');
     copyFileSync(FIXTURE_V1, file);
-    const migs = [...MIGRATIONS, extra(ULTIMA_VERSAO + 1, 'CREATE TABLE nova (id INTEGER PRIMARY KEY); INSERT INTO alunos (nome) VALUES (\'Pós-migração\');')];
+    const migs = [
+      ...MIGRATIONS,
+      extra(ULTIMA_VERSAO + 1, "CREATE TABLE nova (id INTEGER PRIMARY KEY); INSERT INTO alunos (nome) VALUES ('Pós-migração');"),
+    ];
     const db = await openDb({ file, migrations: migs });
     assert.equal(versao(db), ULTIMA_VERSAO + 1);
     db.close();
@@ -88,10 +97,15 @@ test('migration que falha dá rollback, erro claro e o banco fica na versão ant
     const file = join(dir, 'escola.db');
     const ok = extra(ULTIMA_VERSAO + 1, 'CREATE TABLE boa (id INTEGER PRIMARY KEY);');
     const ruim = extra(ULTIMA_VERSAO + 2, 'CREATE TABLE parcial (id INTEGER PRIMARY KEY); INSERT INTO tabela_que_nao_existe VALUES (1);');
-    await assert.rejects(openDb({ file, migrations: [...MIGRATIONS, ok, ruim] }), new RegExp(`Migration ${ULTIMA_VERSAO + 2}.*extra-${ULTIMA_VERSAO + 2}.*tabela_que_nao_existe`));
+    await assert.rejects(
+      openDb({ file, migrations: [...MIGRATIONS, ok, ruim] }),
+      new RegExp(`Migration ${ULTIMA_VERSAO + 2}.*extra-${ULTIMA_VERSAO + 2}.*tabela_que_nao_existe`),
+    );
     const d = new DatabaseSync(file, { readOnly: true });
     assert.equal(Number((d.prepare('PRAGMA user_version').get() as { user_version: number }).user_version), ULTIMA_VERSAO + 1);
-    const nomes = (d.prepare("SELECT name FROM sqlite_master WHERE name IN ('boa','parcial')").all() as { name: string }[]).map((r) => r.name);
+    const nomes = (d.prepare("SELECT name FROM sqlite_master WHERE name IN ('boa','parcial')").all() as { name: string }[]).map(
+      (r) => r.name,
+    );
     assert.deepEqual(nomes, ['boa'], 'a migration que falhou não deixou nada parcial');
     d.close();
     // o arquivo não ficou travado: dá para abrir de novo depois de corrigir
@@ -135,7 +149,9 @@ test('banco sem versão mas com tabelas é tratado como v1 (dados preservados, s
   await comPasta(async (dir) => {
     const file = join(dir, 'escola.db');
     const d = new DatabaseSync(file);
-    d.exec("CREATE TABLE alunos (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL CHECK (length(trim(nome)) > 0), data_nascimento TEXT, documento TEXT, email TEXT, telefone TEXT, endereco TEXT, pais_origem TEXT, moeda_origem TEXT NOT NULL DEFAULT 'BRL', ativo INTEGER NOT NULL DEFAULT 1, criado_em TEXT NOT NULL DEFAULT (datetime('now','localtime'))); INSERT INTO alunos (nome) VALUES ('Antigo');");
+    d.exec(
+      "CREATE TABLE alunos (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL CHECK (length(trim(nome)) > 0), data_nascimento TEXT, documento TEXT, email TEXT, telefone TEXT, endereco TEXT, pais_origem TEXT, moeda_origem TEXT NOT NULL DEFAULT 'BRL', ativo INTEGER NOT NULL DEFAULT 1, criado_em TEXT NOT NULL DEFAULT (datetime('now','localtime'))); INSERT INTO alunos (nome) VALUES ('Antigo');",
+    );
     d.close();
     const db = await openDb({ file });
     assert.equal(versao(db), ULTIMA_VERSAO);

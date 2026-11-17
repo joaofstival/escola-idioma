@@ -7,7 +7,19 @@ import { cn } from '@/lib/utils';
 const TODOS = '__todos__';
 
 /** Select de filtro com rótulo visível. Valor '' = sem filtro (primeira opção deve ter valor ''). */
-export function FiltroSelect({ rotulo, valor, aoMudar, opcoes, className }: { rotulo: string; valor: string; aoMudar: (v: string) => void; opcoes: OpcaoSelect[]; className?: string }) {
+export function FiltroSelect({
+  rotulo,
+  valor,
+  aoMudar,
+  opcoes,
+  className,
+}: {
+  rotulo: string;
+  valor: string;
+  aoMudar: (v: string) => void;
+  opcoes: OpcaoSelect[];
+  className?: string;
+}) {
   const id = useId();
   return (
     <div className={cn('flex flex-col gap-2', className)}>

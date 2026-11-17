@@ -1,13 +1,30 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-  BookOpen, ClipboardCheck, Coins, GraduationCap, Languages, LayoutDashboard, Menu, Presentation,
-  ScrollText, Settings, Users, UserRound, Wallet, X, type LucideIcon,
+  BookOpen,
+  ClipboardCheck,
+  Coins,
+  GraduationCap,
+  Languages,
+  LayoutDashboard,
+  Menu,
+  Presentation,
+  ScrollText,
+  Settings,
+  Users,
+  UserRound,
+  Wallet,
+  X,
+  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-interface Item { rota: string; rotulo: string; icone: LucideIcon }
+interface Item {
+  rota: string;
+  rotulo: string;
+  icone: LucideIcon;
+}
 export const NAVEGACAO: { grupo: string; itens: Item[] }[] = [
   { grupo: 'Geral', itens: [{ rota: 'dashboard', rotulo: 'Painel', icone: LayoutDashboard }] },
   {

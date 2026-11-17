@@ -2,7 +2,9 @@
 export const VAZIO = '—';
 
 export const ou = (v: string | number | null | undefined): string =>
-  v === null || v === undefined || (typeof v === 'string' && v.trim() === '') || (typeof v === 'number' && Number.isNaN(v)) ? VAZIO : String(v);
+  v === null || v === undefined || (typeof v === 'string' && v.trim() === '') || (typeof v === 'number' && Number.isNaN(v))
+    ? VAZIO
+    : String(v);
 
 export const brl = (n: number | null | undefined): string =>
   n === null || n === undefined || Number.isNaN(n) ? VAZIO : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -35,7 +37,8 @@ export const hoje = (): string => new Date().toISOString().slice(0, 10);
 export const anoAtual = (): number => new Date().getFullYear();
 
 /** Faixa QECR para o nível numérico (12 níveis, 2 por faixa). */
-export const cefr = (n: number | string): string => ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'][Math.min(5, Math.max(0, Math.ceil(Number(n) / 2) - 1))];
+export const cefr = (n: number | string): string =>
+  ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'][Math.min(5, Math.max(0, Math.ceil(Number(n) / 2) - 1))];
 /** Rótulo de nível numérico (ex.: "Nível 3 (A2)"). */
 export const nivel = (n: number | string): string => `Nível ${n} (${cefr(n)})`;
 

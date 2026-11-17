@@ -7,7 +7,10 @@ test('CRUD de idiomas', async () => {
   const criado = await api.ok('POST', '/idiomas', { nome: 'Inglês', codigo: 'EN', mensalidade: '320,50' }, 201);
   assert.deepEqual(criado, { id: 1, nome: 'Inglês', codigo: 'en', mensalidade: 320.5 });
   await api.ok('POST', '/idiomas', { nome: 'Alemão', codigo: 'de', mensalidade: 360 });
-  assert.deepEqual((await api.ok('GET', '/idiomas')).map((i: any) => i.nome), ['Alemão', 'Inglês']);
+  assert.deepEqual(
+    (await api.ok('GET', '/idiomas')).map((i: any) => i.nome),
+    ['Alemão', 'Inglês'],
+  );
   assert.equal((await api.ok('GET', '/idiomas/1')).nome, 'Inglês');
   const alterado = await api.ok('PUT', '/idiomas/1', { mensalidade: 330 });
   assert.equal(alterado.mensalidade, 330);

@@ -16,11 +16,25 @@ import * as avaliacoes from './routes/avaliacoes.ts';
 import * as backups from './routes/backups.ts';
 
 /** Módulo de rotas: um arquivo por recurso em routes/, cada um exporta register(router, db). */
-export interface RouteModule { register(router: Router, db: Db): void }
+export interface RouteModule {
+  register(router: Router, db: Db): void;
+}
 
 /** Recursos registrados (todos os do contrato da seção 4 do PLANO). */
 export const MODULOS: RouteModule[] = [
-  idiomas, alunos, professores, turmas, matriculas, materiais, mensalidades, historico, dashboard, cotacao, traducao, avaliacoes, backups,
+  idiomas,
+  alunos,
+  professores,
+  turmas,
+  matriculas,
+  materiais,
+  mensalidades,
+  historico,
+  dashboard,
+  cotacao,
+  traducao,
+  avaliacoes,
+  backups,
 ];
 
 export function createApi(db: Db, modulos: RouteModule[] = MODULOS): Router {

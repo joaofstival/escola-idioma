@@ -27,7 +27,11 @@ export function comEncargos(linha: LinhaMensalidade, hojeRef: string): Mensalida
 }
 
 export interface FiltrosMensalidade {
-  status?: FiltroStatus; aluno_id?: number; matricula_id?: number; competencia?: string; ano?: number;
+  status?: FiltroStatus;
+  aluno_id?: number;
+  matricula_id?: number;
+  competencia?: string;
+  ano?: number;
 }
 
 export function listarMensalidades(db: Db, f: FiltrosMensalidade, hojeRef: string): Mensalidade[] {
@@ -40,14 +44,29 @@ export function listarMensalidades(db: Db, f: FiltrosMensalidade, hojeRef: strin
     where.push('ms.status = :status');
     p.status = f.status;
   }
-  if (f.aluno_id !== undefined) { where.push('ms.aluno_id = :aluno_id'); p.aluno_id = f.aluno_id; }
-  if (f.matricula_id !== undefined) { where.push('ms.matricula_id = :matricula_id'); p.matricula_id = f.matricula_id; }
-  if (f.competencia) { where.push('ms.competencia = :competencia'); p.competencia = f.competencia; }
-  if (f.ano !== undefined) { where.push("substr(ms.competencia, 1, 4) = :ano"); p.ano = String(f.ano); }
-  return db.all<LinhaMensalidade>(
-    `${SELECT_MENSALIDADE} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-     ORDER BY ms.vencimento, a.nome COLLATE NOCASE, ms.id`, p,
-  ).map((l) => comEncargos(l, hojeRef));
+  if (f.aluno_id !== undefined) {
+    where.push('ms.aluno_id = :aluno_id');
+    p.aluno_id = f.aluno_id;
+  }
+  if (f.matricula_id !== undefined) {
+    where.push('ms.matricula_id = :matricula_id');
+    p.matricula_id = f.matricula_id;
+  }
+  if (f.competencia) {
+    where.push('ms.competencia = :competencia');
+    p.competencia = f.competencia;
+  }
+  if (f.ano !== undefined) {
+    where.push('substr(ms.competencia, 1, 4) = :ano');
+    p.ano = String(f.ano);
+  }
+  return db
+    .all<LinhaMensalidade>(
+      `${SELECT_MENSALIDADE} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+     ORDER BY ms.vencimento, a.nome COLLATE NOCASE, ms.id`,
+      p,
+    )
+    .map((l) => comEncargos(l, hojeRef));
 }
 
 export function buscarMensalidade(db: Db, id: number, hojeRef: string = hoje()): Mensalidade {
@@ -55,7 +74,11 @@ export function buscarMensalidade(db: Db, id: number, hojeRef: string = hoje()):
   return comEncargos(l, hojeRef);
 }
 
-export interface DadosPagamento { valor_pago?: unknown; forma_pagamento?: unknown; data_pagamento?: unknown }
+export interface DadosPagamento {
+  valor_pago?: unknown;
+  forma_pagamento?: unknown;
+  data_pagamento?: unknown;
+}
 
 /** Registra o pagamento. Sem valor_pago, usa o valor atualizado na data do pagamento. */
 export function pagarMensalidade(db: Db, id: number, dados: DadosPagamento, hojeRef: string): Mensalidade {
@@ -71,14 +94,18 @@ export function pagarMensalidade(db: Db, id: number, dados: DadosPagamento, hoje
   const valor_pago = valorInformado !== null ? arredondar(valorInformado) : calcularEncargos(atual, data).valor_atualizado;
   db.run(
     `UPDATE mensalidades SET status = 'paga', valor_pago = :valor_pago, data_pagamento = :data, forma_pagamento = :forma
-     WHERE id = :id`, { valor_pago, data, forma, id });
+     WHERE id = :id`,
+    { valor_pago, data, forma, id },
+  );
   return buscarMensalidade(db, id, hojeRef);
 }
 
 export function estornarMensalidade(db: Db, id: number, hojeRef: string): Mensalidade {
   const atual = buscarMensalidade(db, id, hojeRef);
   if (atual.status !== 'paga') throw new HttpError(422, 'Só é possível estornar uma mensalidade paga');
-  db.run(`UPDATE mensalidades SET status = 'pendente', valor_pago = NULL, data_pagamento = NULL, forma_pagamento = NULL WHERE id = ?`, [id]);
+  db.run(`UPDATE mensalidades SET status = 'pendente', valor_pago = NULL, data_pagamento = NULL, forma_pagamento = NULL WHERE id = ?`, [
+    id,
+  ]);
   return buscarMensalidade(db, id, hojeRef);
 }
 
@@ -89,10 +116,20 @@ export function listarInadimplentes(db: Db, hojeRef: string, ano?: number): Inad
   for (const m of atrasadas) {
     let i = porAluno.get(m.aluno_id);
     if (!i) {
-      const contato = db.get<{ email: string | null; telefone: string | null }>('SELECT email, telefone FROM alunos WHERE id = ?', [m.aluno_id])!;
+      const contato = db.get<{ email: string | null; telefone: string | null }>('SELECT email, telefone FROM alunos WHERE id = ?', [
+        m.aluno_id,
+      ])!;
       i = {
-        aluno_id: m.aluno_id, aluno_nome: m.aluno_nome ?? '', email: contato.email, telefone: contato.telefone,
-        qtd: 0, total: 0, total_atualizado: 0, vencimento_mais_antigo: m.vencimento, dias_max_atraso: 0, acima_90_dias: false,
+        aluno_id: m.aluno_id,
+        aluno_nome: m.aluno_nome ?? '',
+        email: contato.email,
+        telefone: contato.telefone,
+        qtd: 0,
+        total: 0,
+        total_atualizado: 0,
+        vencimento_mais_antigo: m.vencimento,
+        dias_max_atraso: 0,
+        acima_90_dias: false,
       };
       porAluno.set(m.aluno_id, i);
     }
@@ -108,7 +145,9 @@ export function listarInadimplentes(db: Db, hojeRef: string, ano?: number): Inad
 
 export function resumoFinanceiro(db: Db, ano: number, hojeRef: string): ResumoFinanceiro {
   const ms = listarMensalidades(db, { ano }, hojeRef);
-  let recebido = 0, a_receber = 0, em_atraso = 0;
+  let recebido = 0,
+    a_receber = 0,
+    em_atraso = 0;
   const porMes = new Map(competenciasDoAno(ano).map((c) => [c, { competencia: c, previsto: 0, recebido: 0 }]));
   for (const m of ms) {
     const mes = porMes.get(m.competencia)!;
@@ -125,7 +164,12 @@ export function resumoFinanceiro(db: Db, ano: number, hojeRef: string): ResumoFi
     recebido: arredondar(recebido),
     a_receber: arredondar(a_receber),
     em_atraso: arredondar(em_atraso),
-    alunos_inadimplentes: listarInadimplentes(db, hojeRef, ano).map(({ aluno_id, aluno_nome, qtd, total }) => ({ aluno_id, aluno_nome, qtd, total })),
+    alunos_inadimplentes: listarInadimplentes(db, hojeRef, ano).map(({ aluno_id, aluno_nome, qtd, total }) => ({
+      aluno_id,
+      aluno_nome,
+      qtd,
+      total,
+    })),
     por_mes: [...porMes.values()].map((x) => ({ ...x, previsto: arredondar(x.previsto), recebido: arredondar(x.recebido) })),
   };
 }
@@ -133,7 +177,8 @@ export function resumoFinanceiro(db: Db, ano: number, hojeRef: string): ResumoFi
 function lerFiltros(query: Record<string, string>): FiltrosMensalidade {
   const erros: string[] = [];
   const status = query.status?.trim() || undefined;
-  if (status && !(FILTROS_STATUS as readonly string[]).includes(status)) erros.push(`Filtro status inválido: "${status}" (use ${FILTROS_STATUS.join(', ')})`);
+  if (status && !(FILTROS_STATUS as readonly string[]).includes(status))
+    erros.push(`Filtro status inválido: "${status}" (use ${FILTROS_STATUS.join(', ')})`);
   const competencia = query.competencia?.trim() || undefined;
   if (competencia && !COMPETENCIA_RE.test(competencia)) erros.push(`Filtro competencia inválido: "${competencia}" (use AAAA-MM)`);
   if (erros.length) throw new ValidationError(erros, 'Filtro inválido');
@@ -152,7 +197,8 @@ export function register(router: Router, db: Db): void {
   router.get('/mensalidades/:id', ({ params }) => buscarMensalidade(db, parseId(params.id, 'Mensalidade')));
 
   router.post('/mensalidades/:id/pagar', ({ params, body }) =>
-    pagarMensalidade(db, parseId(params.id, 'Mensalidade'), exigirCorpo(body ?? {}), hoje()));
+    pagarMensalidade(db, parseId(params.id, 'Mensalidade'), exigirCorpo(body ?? {}), hoje()),
+  );
 
   router.post('/mensalidades/:id/estornar', ({ params }) => estornarMensalidade(db, parseId(params.id, 'Mensalidade'), hoje()));
 
@@ -164,4 +210,3 @@ export function register(router: Router, db: Db): void {
 
   router.get('/financeiro/inadimplentes', () => listarInadimplentes(db, hoje()));
 }
-

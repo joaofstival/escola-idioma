@@ -45,18 +45,27 @@ export function register(router: Router, db: Db): void {
       where.push('ativo = :ativo');
       p.ativo = ativo;
     }
-    return db.all<Aluno>(`SELECT ${COLUNAS} FROM alunos ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY nome COLLATE NOCASE`, p);
+    return db.all<Aluno>(
+      `SELECT ${COLUNAS} FROM alunos ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY nome COLLATE NOCASE`,
+      p,
+    );
   });
 
   router.get('/alunos/:id', ({ params }) => buscarAluno(db, parseId(params.id, 'Aluno')));
 
-  router.post('/alunos', ({ body }) => {
-    const d = validar(db, exigirCorpo(body), null);
-    const { lastInsertRowid } = db.run(
-      `INSERT INTO alunos (nome, data_nascimento, documento, email, telefone, endereco, pais_origem, moeda_origem, ativo)
-       VALUES (:nome, :data_nascimento, :documento, :email, :telefone, :endereco, :pais_origem, :moeda_origem, :ativo)`, d);
-    return buscarAluno(db, lastInsertRowid);
-  }, { status: 201 });
+  router.post(
+    '/alunos',
+    ({ body }) => {
+      const d = validar(db, exigirCorpo(body), null);
+      const { lastInsertRowid } = db.run(
+        `INSERT INTO alunos (nome, data_nascimento, documento, email, telefone, endereco, pais_origem, moeda_origem, ativo)
+       VALUES (:nome, :data_nascimento, :documento, :email, :telefone, :endereco, :pais_origem, :moeda_origem, :ativo)`,
+        d,
+      );
+      return buscarAluno(db, lastInsertRowid);
+    },
+    { status: 201 },
+  );
 
   router.put('/alunos/:id', ({ params, body }) => {
     const id = parseId(params.id, 'Aluno');
@@ -65,7 +74,9 @@ export function register(router: Router, db: Db): void {
     db.run(
       `UPDATE alunos SET nome = :nome, data_nascimento = :data_nascimento, documento = :documento, email = :email,
          telefone = :telefone, endereco = :endereco, pais_origem = :pais_origem, moeda_origem = :moeda_origem, ativo = :ativo
-       WHERE id = :id`, { ...d, id });
+       WHERE id = :id`,
+      { ...d, id },
+    );
     return buscarAluno(db, id);
   });
 
@@ -75,15 +86,19 @@ export function register(router: Router, db: Db): void {
     const c = db.get<{ matriculas: number; mensalidades: number; respostas: number }>(
       `SELECT (SELECT count(*) FROM matriculas WHERE aluno_id = :id) AS matriculas,
               (SELECT count(*) FROM mensalidades WHERE aluno_id = :id) AS mensalidades,
-              (SELECT count(*) FROM avaliacao_respostas WHERE aluno_id = :id) AS respostas`, { id })!;
+              (SELECT count(*) FROM avaliacao_respostas WHERE aluno_id = :id) AS respostas`,
+      { id },
+    )!;
     const deps: string[] = [];
     if (c.matriculas) deps.push(`${c.matriculas} matrícula(s)`);
     if (c.mensalidades) deps.push(`${c.mensalidades} mensalidade(s)`);
     if (c.respostas) deps.push(`${c.respostas} resposta(s) de avaliação`);
     if (deps.length) {
-      throw new HttpError(422,
+      throw new HttpError(
+        422,
         `Não é possível excluir o aluno "${aluno.nome}" porque ele possui ${deps.join(', ')}. Para preservar o histórico, inative o cadastro (ativo = falso).`,
-        deps);
+        deps,
+      );
     }
     db.run('DELETE FROM alunos WHERE id = ?', [id]);
     return { ok: true };

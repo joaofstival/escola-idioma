@@ -36,7 +36,10 @@ test('GET /mensalidades: campos calculados e filtros por status, aluno, competê
   for (const k of ['data_pagamento', 'valor_pago', 'forma_pagamento']) assert.equal(fev[k], null);
 
   const atrasadas = await api.ok('GET', '/mensalidades?status=atrasada');
-  assert.deepEqual(atrasadas.map((m: any) => m.competencia), ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-06']);
+  assert.deepEqual(
+    atrasadas.map((m: any) => m.competencia),
+    ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-06'],
+  );
   assert.ok(atrasadas.every((m: any) => m.atrasada));
   assert.equal((await api.ok('GET', '/mensalidades?status=pendente')).length, 18, 'pendente inclui as atrasadas');
   assert.equal((await api.ok('GET', `/mensalidades?aluno_id=${alice.id}&competencia=2026-07`)).length, 1);
@@ -62,14 +65,21 @@ test('pagar (valor atualizado por padrão, ou valor informado) e estornar', asyn
   const p2 = await api.ok('POST', `/mensalidades/${mar}/pagar`, { forma_pagamento: 'boleto', data_pagamento: '2026-03-10' });
   assert.equal(p2.valor_pago, 300, 'pago no vencimento: sem encargos');
   const abr = idDe(alice.id, '2026-04');
-  const p3 = await api.ok('POST', `/mensalidades/${abr}/pagar`, { forma_pagamento: 'dinheiro', valor_pago: '250,50', data_pagamento: '2026-04-20' });
+  const p3 = await api.ok('POST', `/mensalidades/${abr}/pagar`, {
+    forma_pagamento: 'dinheiro',
+    valor_pago: '250,50',
+    data_pagamento: '2026-04-20',
+  });
   assert.equal(p3.valor_pago, 250.5);
 
   const ja = await api.falha('POST', `/mensalidades/${fev}/pagar`, { forma_pagamento: 'pix' }, 422);
   assert.match(ja.erro, /já está paga/);
   const mai = idDe(alice.id, '2026-05');
   assert.match((await api.falha('POST', `/mensalidades/${mai}/pagar`, {}, 422)).detalhes!.join(), /forma de pagamento/);
-  assert.match((await api.falha('POST', `/mensalidades/${mai}/pagar`, { forma_pagamento: 'pix', data_pagamento: '2026-06-16' }, 422)).detalhes!.join(), /futura/);
+  assert.match(
+    (await api.falha('POST', `/mensalidades/${mai}/pagar`, { forma_pagamento: 'pix', data_pagamento: '2026-06-16' }, 422)).detalhes!.join(),
+    /futura/,
+  );
   await api.falha('POST', `/mensalidades/${mai}/pagar`, { forma_pagamento: 'pix', valor_pago: 0 }, 422);
   await api.falha('POST', '/mensalidades/999/pagar', { forma_pagamento: 'pix' }, 404);
 
@@ -90,7 +100,11 @@ test('resumo financeiro do ano, inadimplentes, histórico do aluno e painel', as
   for (const c of ['2026-02', '2026-03', '2026-04', '2026-05']) {
     await api.ok('POST', `/mensalidades/${idDe(alice.id, c)}/pagar`, { forma_pagamento: 'pix', data_pagamento: `${c}-10` });
   }
-  await api.ok('POST', `/mensalidades/${idDe(bruno.id, '2026-06')}/pagar`, { forma_pagamento: 'pix', valor_pago: 280, data_pagamento: '2026-06-12' });
+  await api.ok('POST', `/mensalidades/${idDe(bruno.id, '2026-06')}/pagar`, {
+    forma_pagamento: 'pix',
+    valor_pago: 280,
+    data_pagamento: '2026-06-12',
+  });
   await api.ok('PUT', `/matriculas/${mB.id}/cancelar`); // jul–dez do Bruno canceladas
 
   const r = await api.ok('GET', '/financeiro/resumo?ano=2026');
@@ -126,7 +140,13 @@ test('resumo financeiro do ano, inadimplentes, histórico do aluno e painel', as
 
   const d = await api.ok('GET', '/dashboard');
   assert.deepEqual(d, {
-    alunos_ativos: 2, professores_ativos: 1, turmas_ano: 2, matriculas_ano: 1,
-    receita_mes: 280, a_receber_mes: 300, inadimplentes: 1, ano: 2026,
+    alunos_ativos: 2,
+    professores_ativos: 1,
+    turmas_ano: 2,
+    matriculas_ano: 1,
+    receita_mes: 280,
+    a_receber_mes: 300,
+    inadimplentes: 1,
+    ano: 2026,
   });
 });

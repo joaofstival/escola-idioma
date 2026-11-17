@@ -1,6 +1,12 @@
 import { Ellipsis, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 export interface AcaoLinha {
@@ -16,7 +22,12 @@ export function MenuAcoes({ item, acoes }: { item: string; acoes: AcaoLinha[] })
   const normais = acoes.filter((a) => !a.destrutiva);
   const destrutivas = acoes.filter((a) => a.destrutiva);
   const render = (a: AcaoLinha) => (
-    <DropdownMenuItem key={a.rotulo} disabled={a.desabilitada} onSelect={a.aoClicar} className={cn('h-9', a.destrutiva && 'text-destructive focus:bg-danger-soft focus:text-danger-deep')}>
+    <DropdownMenuItem
+      key={a.rotulo}
+      disabled={a.desabilitada}
+      onSelect={a.aoClicar}
+      className={cn('h-9', a.destrutiva && 'text-destructive focus:bg-danger-soft focus:text-danger-deep')}
+    >
       {a.icone && <a.icone className="size-4" aria-hidden="true" />}
       {a.rotulo}
     </DropdownMenuItem>

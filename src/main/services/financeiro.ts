@@ -56,8 +56,18 @@ export function dataNoMes(competencia: string, dia: number): string {
 }
 
 // ---------- Encargos ----------
-export interface MensalidadeBase { status: MensalidadeStatus; vencimento: string; valor: number }
-export interface Encargos { atrasada: boolean; dias_atraso: number; multa: number; juros: number; valor_atualizado: number }
+export interface MensalidadeBase {
+  status: MensalidadeStatus;
+  vencimento: string;
+  valor: number;
+}
+export interface Encargos {
+  atrasada: boolean;
+  dias_atraso: number;
+  multa: number;
+  juros: number;
+  valor_atualizado: number;
+}
 
 /** Atrasada = pendente e vencimento < hoje (pagar no próprio dia do vencimento não é atraso). */
 export function estaAtrasada(m: Pick<MensalidadeBase, 'status' | 'vencimento'>, hojeRef: string): boolean {
@@ -81,7 +91,11 @@ export function calcularEncargos(m: MensalidadeBase, hojeRef: string): Encargos 
 }
 
 // ---------- Geração de parcelas ----------
-export interface Parcela { competencia: string; vencimento: string; valor: number }
+export interface Parcela {
+  competencia: string;
+  vencimento: string;
+  valor: number;
+}
 
 /**
  * Parcelas de uma matrícula: uma por mês, do mês da matrícula até dezembro do ano letivo, com o valor do idioma

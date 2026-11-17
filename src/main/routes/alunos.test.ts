@@ -28,10 +28,22 @@ test('alunos: filtros busca (sem acento) e ativo', async () => {
   await api.ok('POST', '/alunos', { nome: 'Joana Lima', ativo: false });
   await api.ok('POST', '/alunos', { nome: 'Carlos', documento: '123.456', email: 'carlos@x.com' });
   assert.equal((await api.ok('GET', '/alunos')).length, 3);
-  assert.deepEqual((await api.ok('GET', '/alunos?busca=joao')).map((a: any) => a.nome), ['João Ávila']);
-  assert.deepEqual((await api.ok('GET', '/alunos?busca=JO')).map((a: any) => a.nome), ['Joana Lima', 'João Ávila']);
-  assert.deepEqual((await api.ok('GET', '/alunos?busca=123.4')).map((a: any) => a.nome), ['Carlos']);
-  assert.deepEqual((await api.ok('GET', '/alunos?ativo=false')).map((a: any) => a.nome), ['Joana Lima']);
+  assert.deepEqual(
+    (await api.ok('GET', '/alunos?busca=joao')).map((a: any) => a.nome),
+    ['João Ávila'],
+  );
+  assert.deepEqual(
+    (await api.ok('GET', '/alunos?busca=JO')).map((a: any) => a.nome),
+    ['Joana Lima', 'João Ávila'],
+  );
+  assert.deepEqual(
+    (await api.ok('GET', '/alunos?busca=123.4')).map((a: any) => a.nome),
+    ['Carlos'],
+  );
+  assert.deepEqual(
+    (await api.ok('GET', '/alunos?ativo=false')).map((a: any) => a.nome),
+    ['Joana Lima'],
+  );
   assert.equal((await api.ok('GET', '/alunos?ativo=true&busca=jo')).length, 1);
   await api.falha('GET', '/alunos?ativo=talvez', undefined, 422);
 });
@@ -53,7 +65,9 @@ test('não exclui aluno com matrículas e sugere inativar', async () => {
   const api = await criarApiTeste();
   const a = await api.ok('POST', '/alunos', base);
   const i = api.db.run("INSERT INTO idiomas (nome, codigo, mensalidade) VALUES ('Inglês', 'en', 300)").lastInsertRowid;
-  const t = api.db.run("INSERT INTO turmas (nome, idioma_id, nivel, ano_letivo, capacidade) VALUES ('T1', ?, 1, 2026, 10)", [i]).lastInsertRowid;
+  const t = api.db.run("INSERT INTO turmas (nome, idioma_id, nivel, ano_letivo, capacidade) VALUES ('T1', ?, 1, 2026, 10)", [
+    i,
+  ]).lastInsertRowid;
   api.db.run('INSERT INTO matriculas (aluno_id, turma_id, ano_letivo) VALUES (?, ?, 2026)', [a.id, t]);
   const r = await api.falha('DELETE', `/alunos/${a.id}`, undefined, 422);
   assert.match(r.erro, /inative/);

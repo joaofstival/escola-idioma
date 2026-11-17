@@ -9,11 +9,19 @@ import { criarRotasTraducao } from '../routes/traducao.ts';
 import { openDb } from '../db.ts';
 
 const mm = (traducao: string, extra: Record<string, unknown> = {}) => ({
-  body: { responseData: { translatedText: traducao, match: 1 }, quotaFinished: false, responseStatus: 200,
-    matches: [{ translation: traducao }, { translation: 'volume' }, { translation: 'Book' }], ...extra },
+  body: {
+    responseData: { translatedText: traducao, match: 1 },
+    quotaFinished: false,
+    responseStatus: 200,
+    matches: [{ translation: traducao }, { translation: 'volume' }, { translation: 'Book' }],
+    ...extra,
+  },
 });
 const google = (t: string) => ({ body: [[[t, 'x', null, null, 10]], null, 'pt'] });
-const porHost = (m: Rota, g: Rota): Rota => (u) => (u.host.includes('mymemory') ? m(u) : g(u));
+const porHost =
+  (m: Rota, g: Rota): Rota =>
+  (u) =>
+    u.host.includes('mymemory') ? m(u) : g(u);
 
 function servico(rota: Rota, opts: { email?: string | null } = {}, relogio = { t: 0 }) {
   const f = fetchFalso(rota);
@@ -22,17 +30,42 @@ function servico(rota: Rota, opts: { email?: string | null } = {}, relogio = { t
 
 test('validação: texto obrigatório, até 500 bytes e idiomas suportados (422)', () => {
   assert.deepEqual(validarPedido('  livro ', 'PT', 'en'), { texto: 'livro', de: 'pt', para: 'en' });
-  assert.throws(() => validarPedido('', 'pt', 'en'), (e: any) => e.status === 422 && /obrigatório/.test(e.detalhes[0]));
-  assert.throws(() => validarPedido('   ', 'pt', 'en'), (e: any) => e.status === 422);
+  assert.throws(
+    () => validarPedido('', 'pt', 'en'),
+    (e: any) => e.status === 422 && /obrigatório/.test(e.detalhes[0]),
+  );
+  assert.throws(
+    () => validarPedido('   ', 'pt', 'en'),
+    (e: any) => e.status === 422,
+  );
   assert.doesNotThrow(() => validarPedido('a'.repeat(500), 'pt', 'en'));
-  assert.throws(() => validarPedido('a'.repeat(501), 'pt', 'en'), (e: any) => /500 bytes/.test(e.detalhes[0]));
-  assert.throws(() => validarPedido('ç'.repeat(251), 'pt', 'en'), (e: any) => /502/.test(e.detalhes[0]), 'conta bytes, não caracteres');
-  assert.throws(() => validarPedido('livro', 'xx', 'en'), (e: any) => e.status === 422);
-  assert.throws(() => validarPedido('livro', 'pt', undefined), (e: any) => e.status === 422);
+  assert.throws(
+    () => validarPedido('a'.repeat(501), 'pt', 'en'),
+    (e: any) => /500 bytes/.test(e.detalhes[0]),
+  );
+  assert.throws(
+    () => validarPedido('ç'.repeat(251), 'pt', 'en'),
+    (e: any) => /502/.test(e.detalhes[0]),
+    'conta bytes, não caracteres',
+  );
+  assert.throws(
+    () => validarPedido('livro', 'xx', 'en'),
+    (e: any) => e.status === 422,
+  );
+  assert.throws(
+    () => validarPedido('livro', 'pt', undefined),
+    (e: any) => e.status === 422,
+  );
 });
 
 test('MyMemory é a fonte principal (com e-mail opcional) e o resultado vai para o cache por 30 dias', async () => {
-  const { s, f, relogio } = servico(porHost(() => mm('book'), () => google('X')), { email: 'escola@exemplo.com' });
+  const { s, f, relogio } = servico(
+    porHost(
+      () => mm('book'),
+      () => google('X'),
+    ),
+    { email: 'escola@exemplo.com' },
+  );
   const r = await s.traduzir('Livro', 'pt', 'en');
   assert.deepEqual(r, { texto: 'Livro', traducao: 'book', de: 'pt', para: 'en', fonte: 'mymemory', alternativas: ['volume'] });
   const u = new URL(f.chamadas[0]);
@@ -68,7 +101,21 @@ test('MyMemory com erro disfarçado (HTTP 200) cai para o Google gtx', async () 
     assert.equal(g.searchParams.get('sl'), 'pt');
     assert.equal(g.searchParams.get('tl'), 'en');
   }
-  const { s } = servico(porHost(() => 'erro', () => ({ body: [[['Bom ', 'Good ', null], ['dia', 'morning', null]], null, 'en'] })));
+  const { s } = servico(
+    porHost(
+      () => 'erro',
+      () => ({
+        body: [
+          [
+            ['Bom ', 'Good ', null],
+            ['dia', 'morning', null],
+          ],
+          null,
+          'en',
+        ],
+      }),
+    ),
+  );
   assert.equal((await s.traduzir('Good morning', 'en', 'pt')).traducao, 'Bom dia', 'junta os segmentos');
 });
 
@@ -96,17 +143,24 @@ test('mesmo idioma devolve o próprio texto sem chamar a rede; dicionário tem ~
 
 test('rota GET /traducao: 200, 422 e 503', async () => {
   const router = new Router();
-  criarRotasTraducao(servico(porHost(() => mm('libro'), () => 'erro')).s).register(router, await openDb());
-  const ok = await router.handle({ method: 'GET', path: '/traducao?texto=livro&de=pt&para=es' }) as any;
+  criarRotasTraducao(
+    servico(
+      porHost(
+        () => mm('libro'),
+        () => 'erro',
+      ),
+    ).s,
+  ).register(router, await openDb());
+  const ok = (await router.handle({ method: 'GET', path: '/traducao?texto=livro&de=pt&para=es' })) as any;
   assert.equal(ok.status, 200);
   assert.equal(ok.data.traducao, 'libro');
-  assert.equal((await router.handle({ method: 'GET', path: '/traducao?texto=livro&para=es' }) as any).data.de, 'pt', 'de padrão: pt');
-  assert.equal((await router.handle({ method: 'GET', path: '/traducao?de=pt&para=es' }) as any).status, 422);
-  assert.equal((await router.handle({ method: 'GET', path: '/traducao?texto=x&de=pt&para=kl' }) as any).status, 422);
+  assert.equal(((await router.handle({ method: 'GET', path: '/traducao?texto=livro&para=es' })) as any).data.de, 'pt', 'de padrão: pt');
+  assert.equal(((await router.handle({ method: 'GET', path: '/traducao?de=pt&para=es' })) as any).status, 422);
+  assert.equal(((await router.handle({ method: 'GET', path: '/traducao?texto=x&de=pt&para=kl' })) as any).status, 422);
 
   const off = new Router();
   criarRotasTraducao(servico(() => 'erro').s).register(off, await openDb());
-  const r = await off.handle({ method: 'GET', path: '/traducao?texto=xyzzy&de=pt&para=en' }) as any;
+  const r = (await off.handle({ method: 'GET', path: '/traducao?texto=xyzzy&de=pt&para=en' })) as any;
   assert.equal(r.status, 503);
   assert.match(r.erro, /Tradução indisponível/);
 });

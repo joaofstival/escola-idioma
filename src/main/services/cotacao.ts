@@ -16,26 +16,52 @@ export const URL_AWESOME = 'https://economia.awesomeapi.com.br/json/last/';
 export const URL_ER_API = 'https://open.er-api.com/v6/latest/BRL';
 
 export const NOMES_MOEDAS: Record<string, string> = {
-  BRL: 'Real brasileiro', USD: 'Dólar americano', EUR: 'Euro', GBP: 'Libra esterlina', ARS: 'Peso argentino',
-  CLP: 'Peso chileno', JPY: 'Iene japonês', CAD: 'Dólar canadense', CHF: 'Franco suíço', CNY: 'Yuan chinês',
-  PYG: 'Guarani paraguaio', UYU: 'Peso uruguaio', BOB: 'Boliviano', PEN: 'Sol peruano', COP: 'Peso colombiano',
-  MXN: 'Peso mexicano', AUD: 'Dólar australiano',
+  BRL: 'Real brasileiro',
+  USD: 'Dólar americano',
+  EUR: 'Euro',
+  GBP: 'Libra esterlina',
+  ARS: 'Peso argentino',
+  CLP: 'Peso chileno',
+  JPY: 'Iene japonês',
+  CAD: 'Dólar canadense',
+  CHF: 'Franco suíço',
+  CNY: 'Yuan chinês',
+  PYG: 'Guarani paraguaio',
+  UYU: 'Peso uruguaio',
+  BOB: 'Boliviano',
+  PEN: 'Sol peruano',
+  COP: 'Peso colombiano',
+  MXN: 'Peso mexicano',
+  AUD: 'Dólar australiano',
 };
 
 const MOEDA_RE = /^[A-Z]{3}$/;
 
-export interface CotacaoOpcoes { fetch?: FetchFn; agora?: () => number; timeoutMs?: number }
+export interface CotacaoOpcoes {
+  fetch?: FetchFn;
+  agora?: () => number;
+  timeoutMs?: number;
+}
 
-interface EntradaCache { cotacao: Cotacao; obtidoEm: number }
+interface EntradaCache {
+  cotacao: Cotacao;
+  obtidoEm: number;
+}
 type Resultado = { tipo: 'ok'; cotacao: Cotacao } | { tipo: 'inexistente' } | { tipo: 'falha' };
 
 /** Normaliza e valida códigos ISO 4217 (422 se algum for inválido). Lista vazia → moedas padrão. */
 export function lerMoedas(v: string | undefined | null, padrao: readonly string[] = MOEDAS_PADRAO): string[] {
-  const lista = (v ?? '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+  const lista = (v ?? '')
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
   if (!lista.length) return [...padrao];
   const invalidas = lista.filter((m) => !MOEDA_RE.test(m));
   if (invalidas.length) {
-    throw new ValidationError(invalidas.map((m) => `Código de moeda inválido: "${m}" (use 3 letras, ex.: USD)`), 'Moeda inválida');
+    throw new ValidationError(
+      invalidas.map((m) => `Código de moeda inválido: "${m}" (use 3 letras, ex.: USD)`),
+      'Moeda inválida',
+    );
   }
   const unicas = [...new Set(lista)];
   if (unicas.length > MAX_MOEDAS) throw new ValidationError([`Informe no máximo ${MAX_MOEDAS} moedas`], 'Moeda inválida');
@@ -47,11 +73,23 @@ function arred(v: number, casas: number): number {
   return Math.round((v + Number.EPSILON) * f) / f;
 }
 
-function montar(moeda: string, valorEmBrl: number, atualizado_em: string, fonte: string, variacao_pct: number | null, nomeApi?: string): Cotacao {
+function montar(
+  moeda: string,
+  valorEmBrl: number,
+  atualizado_em: string,
+  fonte: string,
+  variacao_pct: number | null,
+  nomeApi?: string,
+): Cotacao {
   return {
-    moeda, nome: NOMES_MOEDAS[moeda] ?? nomeApi ?? moeda,
-    valor_em_brl: arred(valorEmBrl, 6), brl_em_moeda: arred(1 / valorEmBrl, 6),
-    atualizado_em, variacao_pct, fonte, desatualizada: false,
+    moeda,
+    nome: NOMES_MOEDAS[moeda] ?? nomeApi ?? moeda,
+    valor_em_brl: arred(valorEmBrl, 6),
+    brl_em_moeda: arred(1 / valorEmBrl, 6),
+    atualizado_em,
+    variacao_pct,
+    fonte,
+    desatualizada: false,
   };
 }
 
@@ -85,7 +123,17 @@ export class ServicoCotacao {
     if (!Number.isFinite(bid) || bid <= 0) return { tipo: 'falha' };
     const pct = Number(item.pctChange);
     const nome = typeof item.name === 'string' ? item.name.split('/')[0] : undefined;
-    return { tipo: 'ok', cotacao: montar(moeda, bid, dataAwesome(item.create_date, this.agora()), 'awesomeapi', Number.isFinite(pct) ? arred(pct, 2) : null, nome) };
+    return {
+      tipo: 'ok',
+      cotacao: montar(
+        moeda,
+        bid,
+        dataAwesome(item.create_date, this.agora()),
+        'awesomeapi',
+        Number.isFinite(pct) ? arred(pct, 2) : null,
+        nome,
+      ),
+    };
   }
 
   private async awesomePar(moeda: string): Promise<Resultado> {
@@ -127,12 +175,19 @@ export class ServicoCotacao {
       const r = await obterJson(this.fetchFn, URL_ER_API, this.timeoutMs);
       if (!r.ok || !ehObjeto(r.corpo) || r.corpo.result !== 'success' || !ehObjeto(r.corpo.rates)) return null;
       const rates = r.corpo.rates;
-      const data = typeof r.corpo.time_last_update_utc === 'string' && !Number.isNaN(Date.parse(r.corpo.time_last_update_utc))
-        ? new Date(r.corpo.time_last_update_utc).toISOString() : new Date(this.agora()).toISOString();
+      const data =
+        typeof r.corpo.time_last_update_utc === 'string' && !Number.isNaN(Date.parse(r.corpo.time_last_update_utc))
+          ? new Date(r.corpo.time_last_update_utc).toISOString()
+          : new Date(this.agora()).toISOString();
       const out = new Map<string, Resultado>();
       for (const m of moedas) {
         const taxa = Number(rates[m]);
-        out.set(m, Number.isFinite(taxa) && taxa > 0 ? { tipo: 'ok', cotacao: montar(m, 1 / taxa, data, 'exchangerate-api', null) } : { tipo: 'inexistente' });
+        out.set(
+          m,
+          Number.isFinite(taxa) && taxa > 0
+            ? { tipo: 'ok', cotacao: montar(m, 1 / taxa, data, 'exchangerate-api', null) }
+            : { tipo: 'inexistente' },
+        );
       }
       return out;
     } catch {
@@ -150,7 +205,16 @@ export class ServicoCotacao {
 
     for (const m of moedasPedidas) {
       if (m === 'BRL') {
-        cotacoes.BRL = { moeda: 'BRL', nome: NOMES_MOEDAS.BRL, valor_em_brl: 1, brl_em_moeda: 1, atualizado_em: new Date(agora).toISOString(), variacao_pct: 0, fonte: 'fixo', desatualizada: false };
+        cotacoes.BRL = {
+          moeda: 'BRL',
+          nome: NOMES_MOEDAS.BRL,
+          valor_em_brl: 1,
+          brl_em_moeda: 1,
+          atualizado_em: new Date(agora).toISOString(),
+          variacao_pct: 0,
+          fonte: 'fixo',
+          desatualizada: false,
+        };
         continue;
       }
       const c = this.cache.get(m);
@@ -185,13 +249,19 @@ export class ServicoCotacao {
     const lista = Object.values(cotacoes);
     if (!lista.length) {
       if (indisponiveis.length) throw new HttpError(503, MSG_INDISPONIVEL);
-      throw new ValidationError(invalidas.map((m) => `Moeda não encontrada: ${m}`), 'Moeda não encontrada');
+      throw new ValidationError(
+        invalidas.map((m) => `Moeda não encontrada: ${m}`),
+        'Moeda não encontrada',
+      );
     }
     const fontes = [...new Set(lista.filter((c) => c.moeda !== 'BRL').map((c) => c.fonte ?? ''))];
     const resp: CotacaoResposta = {
       base: 'BRL',
       fonte: fontes.length ? fontes.join(',') : 'fixo',
-      data: lista.map((c) => c.atualizado_em).sort().at(-1)!,
+      data: lista
+        .map((c) => c.atualizado_em)
+        .sort()
+        .at(-1)!,
       desatualizada: lista.some((c) => c.desatualizada),
       cotacoes,
     };
@@ -203,11 +273,17 @@ export class ServicoCotacao {
   /** Converte cruzando por BRL: valor × valor_em_brl(de) / valor_em_brl(para). */
   async converter(valor: number, de: string, para: string): Promise<Conversao> {
     const r = await this.cotacoes([...new Set([de, para])]);
-    if (r.invalidas?.length) throw new ValidationError(r.invalidas.map((m) => `Moeda não encontrada: ${m}`), 'Moeda não encontrada');
+    if (r.invalidas?.length)
+      throw new ValidationError(
+        r.invalidas.map((m) => `Moeda não encontrada: ${m}`),
+        'Moeda não encontrada',
+      );
     if (r.indisponiveis?.length) throw new HttpError(503, MSG_INDISPONIVEL);
     const taxa = r.cotacoes[de].valor_em_brl / r.cotacoes[para].valor_em_brl;
     return {
-      valor, de, para,
+      valor,
+      de,
+      para,
       resultado: arred(valor * taxa, 4),
       taxa: arred(taxa, 8),
       fonte: r.fonte,

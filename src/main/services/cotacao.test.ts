@@ -8,7 +8,9 @@ import { criarRotasCotacao } from '../routes/cotacao.ts';
 import { openDb } from '../db.ts';
 
 const AWESOME: Record<string, { bid: string; pctChange: string }> = {
-  USD: { bid: '5.80', pctChange: '1.5' }, EUR: { bid: '6.40', pctChange: '-0.25' }, JPY: { bid: '0.0362', pctChange: '0' },
+  USD: { bid: '5.80', pctChange: '1.5' },
+  EUR: { bid: '6.40', pctChange: '-0.25' },
+  JPY: { bid: '0.0362', pctChange: '0' },
 };
 const ER_RATES: Record<string, number> = { BRL: 1, USD: 0.2, EUR: 0.16, JPY: 25, PYG: 1250 };
 
@@ -23,20 +25,34 @@ function awesome(url: URL) {
   }
   return { body: corpo };
 }
-const erApi = () => ({ body: { result: 'success', time_last_update_utc: 'Mon, 16 Nov 2026 00:02:31 +0000', base_code: 'BRL', rates: ER_RATES } });
+const erApi = () => ({
+  body: { result: 'success', time_last_update_utc: 'Mon, 16 Nov 2026 00:02:31 +0000', base_code: 'BRL', rates: ER_RATES },
+});
 
 function servico(rota: Rota, relogio = { t: Date.UTC(2026, 10, 16, 12) }) {
   const f = fetchFalso(rota);
   return { s: new ServicoCotacao({ fetch: f, agora: () => relogio.t, timeoutMs: 50 }), f, relogio };
 }
-const porHost = (a: Rota, e: Rota): Rota => (u) => (u.host.includes('awesomeapi') ? a(u) : e(u));
+const porHost =
+  (a: Rota, e: Rota): Rota =>
+  (u) =>
+    u.host.includes('awesomeapi') ? a(u) : e(u);
 
 test('lerMoedas: padrão, normalização e 422 para código inválido', () => {
   assert.deepEqual(lerMoedas(undefined), [...MOEDAS_PADRAO]);
   assert.deepEqual(lerMoedas(' usd, eur,USD '), ['USD', 'EUR']);
-  assert.throws(() => lerMoedas('US'), (e: any) => e.status === 422);
-  assert.throws(() => lerMoedas('USD,EURO'), (e: any) => e.status === 422 && /EURO/.test(e.detalhes[0]));
-  assert.throws(() => lerMoedas('U1D'), (e: any) => e.status === 422);
+  assert.throws(
+    () => lerMoedas('US'),
+    (e: any) => e.status === 422,
+  );
+  assert.throws(
+    () => lerMoedas('USD,EURO'),
+    (e: any) => e.status === 422 && /EURO/.test(e.detalhes[0]),
+  );
+  assert.throws(
+    () => lerMoedas('U1D'),
+    (e: any) => e.status === 422,
+  );
 });
 
 test('AwesomeAPI como fonte principal, com cache de 1 h', async () => {
@@ -66,7 +82,10 @@ test('moeda inválida não derruba as outras: consulta par a par e devolve inval
   const r = await s.cotacoes(['USD', 'XYZ', 'EUR']);
   assert.deepEqual(Object.keys(r.cotacoes).sort(), ['EUR', 'USD']);
   assert.deepEqual(r.invalidas, ['XYZ']);
-  assert.ok(f.chamadas.some((u) => u.endsWith('/XYZ-BRL')), 'isolou o par inválido');
+  assert.ok(
+    f.chamadas.some((u) => u.endsWith('/XYZ-BRL')),
+    'isolou o par inválido',
+  );
   await assert.rejects(s.cotacoes(['XYZ']), (e: any) => e.status === 422 && /XYZ/.test(e.detalhes[0]));
 });
 
@@ -86,7 +105,12 @@ test('fallback para open.er-api (1/rates.X) quando a AwesomeAPI falha ou não te
   assert.equal(r2.cotacoes.PYG.valor_em_brl, 0.0008);
   assert.equal(r2.fonte, 'awesomeapi,exchangerate-api');
 
-  const { s: s3 } = servico(porHost(() => ({ status: 429, body: {} }), () => ({ body: { result: 'error', 'error-type': 'unsupported-code' } })));
+  const { s: s3 } = servico(
+    porHost(
+      () => ({ status: 429, body: {} }),
+      () => ({ body: { result: 'error', 'error-type': 'unsupported-code' } }),
+    ),
+  );
   await assert.rejects(s3.cotacoes(['USD']), (e: any) => e.status === 503);
 });
 
@@ -141,7 +165,7 @@ test('rotas /cotacao e /cotacao/converter (cruzando por BRL) com 422 e 503', asy
 
   const off = new Router();
   criarRotasCotacao(servico(() => 'erro').s).register(off, await openDb());
-  const r503 = await off.handle({ method: 'GET', path: '/cotacao?moedas=USD' }) as any;
+  const r503 = (await off.handle({ method: 'GET', path: '/cotacao?moedas=USD' })) as any;
   assert.equal(r503.status, 503);
   assert.equal(r503.erro, 'Serviço de cotação indisponível no momento. Tente novamente mais tarde.');
 });

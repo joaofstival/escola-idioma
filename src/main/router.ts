@@ -81,17 +81,28 @@ export class Router {
   add(method: HttpMethod, pattern: string, handler: Handler, opts: RouteOptions = {}): this {
     const segments = dividir(pattern);
     this.routes.push({
-      method, pattern, segments, handler,
+      method,
+      pattern,
+      segments,
+      handler,
       literais: segments.filter((s) => !s.startsWith(':')).length,
       status: opts.status ?? 200,
     });
     return this;
   }
 
-  get(pattern: string, h: Handler, o?: RouteOptions) { return this.add('GET', pattern, h, o); }
-  post(pattern: string, h: Handler, o?: RouteOptions) { return this.add('POST', pattern, h, o); }
-  put(pattern: string, h: Handler, o?: RouteOptions) { return this.add('PUT', pattern, h, o); }
-  delete(pattern: string, h: Handler, o?: RouteOptions) { return this.add('DELETE', pattern, h, o); }
+  get(pattern: string, h: Handler, o?: RouteOptions) {
+    return this.add('GET', pattern, h, o);
+  }
+  post(pattern: string, h: Handler, o?: RouteOptions) {
+    return this.add('POST', pattern, h, o);
+  }
+  put(pattern: string, h: Handler, o?: RouteOptions) {
+    return this.add('PUT', pattern, h, o);
+  }
+  delete(pattern: string, h: Handler, o?: RouteOptions) {
+    return this.add('DELETE', pattern, h, o);
+  }
 
   /** Lista as rotas registradas (útil para depuração e testes). */
   list(): string[] {

@@ -3,10 +3,22 @@ import { HttpError, NotFoundError, ValidationError } from './router.ts';
 
 type Dados = Record<string, unknown>;
 
-interface Base { obrigatorio?: boolean; rotulo?: string }
-export interface OpTexto extends Base { max?: number; min?: number }
-export interface OpNumero extends Base { min?: number; max?: number; inteiro?: boolean }
-export interface OpData extends Base { naoFutura?: boolean }
+interface Base {
+  obrigatorio?: boolean;
+  rotulo?: string;
+}
+export interface OpTexto extends Base {
+  max?: number;
+  min?: number;
+}
+export interface OpNumero extends Base {
+  min?: number;
+  max?: number;
+  inteiro?: boolean;
+}
+export interface OpData extends Base {
+  naoFutura?: boolean;
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const DATA_RE = /^(\d{4})-(\d{2})-(\d{2})$/;

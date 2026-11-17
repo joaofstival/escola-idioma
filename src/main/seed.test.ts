@@ -27,7 +27,8 @@ test('dados da seed respeitam as regras da API', async () => {
   assert.ok(profs.data.every((p: any) => p.idiomas.length >= 1 && p.idiomas.length <= 2));
   const turmas = db.all<{ n: number }>(
     `SELECT count(*) AS n FROM turmas t WHERE NOT EXISTS
-       (SELECT 1 FROM professor_idiomas pi WHERE pi.professor_id = t.professor_id AND pi.idioma_id = t.idioma_id)`);
+       (SELECT 1 FROM professor_idiomas pi WHERE pi.professor_id = t.professor_id AND pi.idioma_id = t.idioma_id)`,
+  );
   assert.equal(turmas[0].n, 0, 'todo professor de turma está habilitado no idioma');
   const anos = db.all<{ ano_letivo: number }>('SELECT DISTINCT ano_letivo FROM turmas ORDER BY 1').map((r) => r.ano_letivo);
   assert.deepEqual(anos, [2025, 2026]);
@@ -44,26 +45,35 @@ test('seed da parte 3: matrículas, mensalidades, inadimplentes, sugestões e ma
   const api = createApi(db);
   const get = async (path: string) => ((await api.handle({ method: 'GET', path })) as any).data;
 
-  const porAno = Object.fromEntries(db.all<any>(
-    "SELECT ano_letivo || '|' || status AS k, count(*) AS n FROM matriculas GROUP BY 1").map((r) => [r.k, r.n]));
+  const porAno = Object.fromEntries(
+    db.all<any>("SELECT ano_letivo || '|' || status AS k, count(*) AS n FROM matriculas GROUP BY 1").map((r) => [r.k, r.n]),
+  );
   assert.equal(porAno['2025|concluida'], MATRICULAS_ANTERIOR.length, 'ano anterior todo concluído');
   assert.equal(porAno['2026|ativa'], REMATRICULAS.length + MATRICULAS_ATUAL.length - 1);
   assert.equal(porAno['2026|cancelada'], 1);
   assert.equal(db.get<any>("SELECT count(*) AS n FROM matriculas WHERE tipo = 'rematricula'").n, REMATRICULAS.length);
 
   // Cada matrícula tem as mensalidades geradas pela mesma regra das rotas (mês da matrícula até dezembro).
-  const semParcelas = db.get<any>('SELECT count(*) AS n FROM matriculas m WHERE NOT EXISTS (SELECT 1 FROM mensalidades ms WHERE ms.matricula_id = m.id)');
+  const semParcelas = db.get<any>(
+    'SELECT count(*) AS n FROM matriculas m WHERE NOT EXISTS (SELECT 1 FROM mensalidades ms WHERE ms.matricula_id = m.id)',
+  );
   assert.equal(semParcelas.n, 0);
-  const dez = db.get<any>("SELECT count(*) AS n FROM matriculas m WHERE NOT EXISTS (SELECT 1 FROM mensalidades ms WHERE ms.matricula_id = m.id AND ms.competencia = m.ano_letivo || '-12')");
+  const dez = db.get<any>(
+    "SELECT count(*) AS n FROM matriculas m WHERE NOT EXISTS (SELECT 1 FROM mensalidades ms WHERE ms.matricula_id = m.id AND ms.competencia = m.ano_letivo || '-12')",
+  );
   assert.equal(dez.n, 0);
   const valorErrado = db.get<any>(
     `SELECT count(*) AS n FROM mensalidades ms JOIN matriculas m ON m.id = ms.matricula_id JOIN turmas t ON t.id = m.turma_id
-     JOIN idiomas i ON i.id = t.idioma_id WHERE ms.valor <> i.mensalidade`);
+     JOIN idiomas i ON i.id = t.idioma_id WHERE ms.valor <> i.mensalidade`,
+  );
   assert.equal(valorErrado.n, 0);
 
   const pagas = await get('/mensalidades?status=paga');
   assert.ok(pagas.length > 100);
-  assert.ok(pagas.some((m: any) => m.valor_pago > m.valor), 'há pagamentos com multa e juros');
+  assert.ok(
+    pagas.some((m: any) => m.valor_pago > m.valor),
+    'há pagamentos com multa e juros',
+  );
   const inad = await get('/financeiro/inadimplentes');
   assert.deepEqual(inad.map((i: any) => i.aluno_nome).sort(), ['Emily Johnson', 'Marcelo Pires', 'Mateo González', 'Valentina López']);
   assert.ok(inad.find((i: any) => i.aluno_nome === 'Mateo González').acima_90_dias);
@@ -71,7 +81,10 @@ test('seed da parte 3: matrículas, mensalidades, inadimplentes, sugestões e ma
   assert.ok(resumo.recebido > 0 && resumo.a_receber > 0 && resumo.em_atraso > 0);
 
   const sug = await get('/matriculas/sugestoes-rematricula?ano=2026');
-  assert.deepEqual(sug.map((s: any) => s.aluno_nome), ['John Smith', 'Martina Rossi', 'Mateo González', 'Sophie Martin']);
+  assert.deepEqual(
+    sug.map((s: any) => s.aluno_nome),
+    ['John Smith', 'Martina Rossi', 'Mateo González', 'Sophie Martin'],
+  );
   assert.ok(sug.every((s: any) => s.turmas_sugeridas.length === 1));
   assert.equal(sug.find((s: any) => s.aluno_nome === 'Mateo González').inadimplente, true);
 

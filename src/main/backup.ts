@@ -2,9 +2,7 @@
 // Backups: VACUUM INTO (cópia consistente mesmo com WAL). Restauração em duas fases: validar e preparar
 // `escola.db.restaurar` com o app aberto; trocar os arquivos no próximo boot, antes de abrir o banco.
 import { DatabaseSync } from 'node:sqlite';
-import {
-  existsSync, mkdirSync, readdirSync, statSync, rmSync, copyFileSync, mkdtempSync, realpathSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, statSync, rmSync, copyFileSync, mkdtempSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { copiarSemSobrescrever, renomearDuravel } from './arquivos.ts';
@@ -53,8 +51,11 @@ function infoDoArquivo(pasta: string, nome: string): BackupInfo | null {
 export function listarBackups(pasta: string): BackupInfo[] {
   if (!existsSync(pasta)) return [];
   const carimbo = (n: string) => NOME_RE.exec(n)!.slice(2).join('') + n; // data+hora primeiro, independente do tipo
-  return readdirSync(pasta).filter((n) => NOME_RE.test(n)).sort((a, b) => carimbo(b).localeCompare(carimbo(a)))
-    .map((n) => infoDoArquivo(pasta, n)).filter((i): i is BackupInfo => i !== null);
+  return readdirSync(pasta)
+    .filter((n) => NOME_RE.test(n))
+    .sort((a, b) => carimbo(b).localeCompare(carimbo(a)))
+    .map((n) => infoDoArquivo(pasta, n))
+    .filter((i): i is BackupInfo => i !== null);
 }
 
 /** Cria `escola-<auto|manual>-AAAA-MM-DD-HHmmss.db`. Nome repetido no mesmo segundo ganha sufixo -2, -3... */
@@ -84,7 +85,12 @@ export function backupDiario(db: Db, pasta: string, agora: Date = new Date()): B
 }
 
 /** Falha de backup não derruba o app: registra e segue. */
-export function backupDiarioSeguro(db: Db, pasta: string, agora: Date = new Date(), log: (m: string, e?: unknown) => void = console.error): BackupInfo | null {
+export function backupDiarioSeguro(
+  db: Db,
+  pasta: string,
+  agora: Date = new Date(),
+  log: (m: string, e?: unknown) => void = console.error,
+): BackupInfo | null {
   try {
     return backupDiario(db, pasta, agora);
   } catch (err) {
@@ -97,7 +103,10 @@ export function backupDiarioSeguro(db: Db, pasta: string, agora: Date = new Date
  * Backup ao abrir e quando o dia muda com o app aberto (confere a cada `intervaloMs`).
  * Devolve a função que para o agendamento.
  */
-export function iniciarBackupAutomatico(db: Db, opts: { agora?: () => Date; intervaloMs?: number; log?: (m: string, e?: unknown) => void } = {}): () => void {
+export function iniciarBackupAutomatico(
+  db: Db,
+  opts: { agora?: () => Date; intervaloMs?: number; log?: (m: string, e?: unknown) => void } = {},
+): () => void {
   const agora = opts.agora ?? (() => new Date());
   const pasta = pastaDeBackups(db);
   backupDiarioSeguro(db, pasta, agora(), opts.log);
@@ -141,15 +150,22 @@ export function validarArquivoDeBackup(arquivo: string): string | null {
     const versao = Number((d.prepare('PRAGMA user_version').get() as { user_version: number }).user_version);
     if (versao < 1) return 'O arquivo não é um banco da escola (sem versão)';
     if (versao > ULTIMA_VERSAO) return `O arquivo é de uma versão mais nova do app (versão ${versao}); atualize o app antes de restaurar`;
-    const nomes = new Set((d.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((r) => r.name));
+    const nomes = new Set(
+      (d.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((r) => r.name),
+    );
     const faltam = TABELAS.filter((t) => !nomes.has(t));
     if (faltam.length) return `O arquivo não é um banco da escola (faltam tabelas: ${faltam.join(', ')})`;
-    if (d.prepare('PRAGMA foreign_key_check').all().length) return 'O arquivo tem registros ligados a dados que não existem (falhou em foreign_key_check)';
+    if (d.prepare('PRAGMA foreign_key_check').all().length)
+      return 'O arquivo tem registros ligados a dados que não existem (falhou em foreign_key_check)';
     return null;
   } catch {
     return 'O arquivo não é um banco SQLite válido';
   } finally {
-    try { d?.close(); } catch { /* já fechado */ }
+    try {
+      d?.close();
+    } catch {
+      /* já fechado */
+    }
     rmSync(dir, { recursive: true, force: true });
   }
 }
@@ -212,8 +228,15 @@ export function concluirRestauracaoPendente(userData: string, agora: Date = new 
     let checkpointOk = false;
     try {
       const d = new DatabaseSync(atual);
-      try { d.exec('PRAGMA wal_checkpoint(TRUNCATE)'); checkpointOk = true; } finally { d.close(); }
-    } catch { /* banco atual ilegível: guarda os arquivos como estão, abaixo */ }
+      try {
+        d.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+        checkpointOk = true;
+      } finally {
+        d.close();
+      }
+    } catch {
+      /* banco atual ilegível: guarda os arquivos como estão, abaixo */
+    }
     checkpointOk = checkpointOk && sufixos.every((s) => !existsSync(atual + s));
     copiarSemSobrescrever(atual, guardado);
     if (!checkpointOk) {

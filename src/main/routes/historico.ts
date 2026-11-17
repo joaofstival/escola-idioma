@@ -22,7 +22,9 @@ export function historicoAluno(db: Db, alunoId: number, hojeRef: string): Histor
     }
   }
   return {
-    aluno, matriculas, mensalidades,
+    aluno,
+    matriculas,
+    mensalidades,
     resumo: { pago: arredondar(resumo.pago), pendente: arredondar(resumo.pendente), atrasado: arredondar(resumo.atrasado) },
   };
 }

@@ -14,7 +14,9 @@ function comIdiomas(db: Db, rows: ProfessorRow[]): Professor[] {
   const ids = rows.map((r) => r.id);
   const refs = db.all<IdiomaRef>(
     `SELECT pi.professor_id, i.id, i.nome FROM professor_idiomas pi JOIN idiomas i ON i.id = pi.idioma_id
-     WHERE pi.professor_id IN (${ids.map(() => '?').join(',')}) ORDER BY i.nome`, ids);
+     WHERE pi.professor_id IN (${ids.map(() => '?').join(',')}) ORDER BY i.nome`,
+    ids,
+  );
   const porProfessor = new Map<number, { id: number; nome: string }[]>();
   for (const r of refs) {
     const lista = porProfessor.get(r.professor_id) ?? [];
@@ -25,7 +27,10 @@ function comIdiomas(db: Db, rows: ProfessorRow[]): Professor[] {
 }
 
 export function buscarProfessor(db: Db, id: number): Professor {
-  const row = encontrado(db.get<ProfessorRow>('SELECT id, nome, email, telefone, ativo FROM professores WHERE id = ?', [id]), 'Professor não encontrado');
+  const row = encontrado(
+    db.get<ProfessorRow>('SELECT id, nome, email, telefone, ativo FROM professores WHERE id = ?', [id]),
+    'Professor não encontrado',
+  );
   return comIdiomas(db, [row])[0];
 }
 
@@ -49,7 +54,9 @@ function validar(db: Db, dados: Record<string, unknown>, id: number | null) {
     const emUso = db.all<{ nome: string; turmas: number }>(
       `SELECT i.nome, count(*) AS turmas FROM turmas t JOIN idiomas i ON i.id = t.idioma_id
        WHERE t.professor_id = ? ${idiomas.length ? `AND t.idioma_id NOT IN (${idiomas.map(() => '?').join(',')})` : ''}
-       GROUP BY i.id, i.nome ORDER BY i.nome`, [id, ...idiomas]);
+       GROUP BY i.id, i.nome ORDER BY i.nome`,
+      [id, ...idiomas],
+    );
     for (const u of emUso) {
       v.erro(`O professor leciona em ${u.turmas} turma(s) de ${u.nome}; troque o professor dessas turmas antes de remover a habilitação`);
     }
@@ -81,28 +88,45 @@ export function register(router: Router, db: Db): void {
     }
     const rows = db.all<ProfessorRow>(
       `SELECT p.id, p.nome, p.email, p.telefone, p.ativo FROM professores p
-       ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY p.nome COLLATE NOCASE`, p);
+       ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY p.nome COLLATE NOCASE`,
+      p,
+    );
     return comIdiomas(db, rows);
   });
 
   router.get('/professores/:id', ({ params }) => buscarProfessor(db, parseId(params.id, 'Professor')));
 
-  router.post('/professores', ({ body }) => {
-    const d = validar(db, exigirCorpo(body), null);
-    const id = db.transaction(() => {
-      const { lastInsertRowid } = db.run('INSERT INTO professores (nome, email, telefone, ativo) VALUES (?, ?, ?, ?)', [d.nome, d.email, d.telefone, d.ativo]);
-      salvarIdiomas(db, lastInsertRowid, d.idiomas);
-      return lastInsertRowid;
-    });
-    return buscarProfessor(db, id);
-  }, { status: 201 });
+  router.post(
+    '/professores',
+    ({ body }) => {
+      const d = validar(db, exigirCorpo(body), null);
+      const id = db.transaction(() => {
+        const { lastInsertRowid } = db.run('INSERT INTO professores (nome, email, telefone, ativo) VALUES (?, ?, ?, ?)', [
+          d.nome,
+          d.email,
+          d.telefone,
+          d.ativo,
+        ]);
+        salvarIdiomas(db, lastInsertRowid, d.idiomas);
+        return lastInsertRowid;
+      });
+      return buscarProfessor(db, id);
+    },
+    { status: 201 },
+  );
 
   router.put('/professores/:id', ({ params, body }) => {
     const id = parseId(params.id, 'Professor');
     const atual = buscarProfessor(db, id);
     const d = validar(db, { ...atual, ...exigirCorpo(body) }, id);
     db.transaction(() => {
-      db.run('UPDATE professores SET nome = ?, email = ?, telefone = ?, ativo = ? WHERE id = ?', [d.nome, d.email, d.telefone, d.ativo, id]);
+      db.run('UPDATE professores SET nome = ?, email = ?, telefone = ?, ativo = ? WHERE id = ?', [
+        d.nome,
+        d.email,
+        d.telefone,
+        d.ativo,
+        id,
+      ]);
       salvarIdiomas(db, id, d.idiomas);
     });
     return buscarProfessor(db, id);
@@ -113,9 +137,11 @@ export function register(router: Router, db: Db): void {
     const prof = buscarProfessor(db, id);
     const turmas = db.get<{ n: number }>('SELECT count(*) AS n FROM turmas WHERE professor_id = ?', [id])!.n;
     if (turmas) {
-      throw new HttpError(422,
+      throw new HttpError(
+        422,
         `Não é possível excluir o professor "${prof.nome}" porque ele está alocado em ${turmas} turma(s). Troque o professor das turmas ou inative o cadastro (ativo = falso).`,
-        [`${turmas} turma(s)`]);
+        [`${turmas} turma(s)`],
+      );
     }
     db.run('DELETE FROM professores WHERE id = ?', [id]); // professor_idiomas sai em cascata
     return { ok: true };

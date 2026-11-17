@@ -11,7 +11,10 @@ test('Validador acumula todos os problemas num único 422', () => {
   v.numero('valor', { min: 0 });
   v.data('data');
   v.enumeracao('tipo', ['a', 'b'] as const);
-  assert.throws(() => v.verificar(), (e: unknown) => e instanceof ValidationError && e.status === 422 && e.detalhes!.length === 6);
+  assert.throws(
+    () => v.verificar(),
+    (e: unknown) => e instanceof ValidationError && e.status === 422 && e.detalhes!.length === 6,
+  );
 });
 
 test('conversões: número com vírgula, boolean em texto, e-mail em minúsculas', () => {

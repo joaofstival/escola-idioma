@@ -27,7 +27,8 @@ function validar(db: Db, dados: Record<string, unknown>) {
   const referencia = v.texto('referencia', { max: 500, rotulo: 'referência' });
   const descricao = v.texto('descricao', { max: 2000, rotulo: 'descrição' });
   if (idioma_id && !db.get('SELECT 1 FROM idiomas WHERE id = ?', [idioma_id])) v.erro(`Idioma ${idioma_id} não existe`);
-  if (tipo === 'link' && referencia && !/^https?:\/\/\S+$/i.test(referencia)) v.erro('referência de um link deve ser um endereço http(s)://');
+  if (tipo === 'link' && referencia && !/^https?:\/\/\S+$/i.test(referencia))
+    v.erro('referência de um link deve ser um endereço http(s)://');
   v.verificar();
   return { titulo, tipo, idioma_id, nivel, autor, referencia, descricao };
 }
@@ -35,9 +36,18 @@ function validar(db: Db, dados: Record<string, unknown>) {
 export function listarMateriais(db: Db, f: { idioma_id?: number; nivel?: number; tipo?: MaterialTipo; busca?: string }): Material[] {
   const where: string[] = [];
   const p: Record<string, string | number> = {};
-  if (f.idioma_id !== undefined) { where.push('m.idioma_id = :idioma_id'); p.idioma_id = f.idioma_id; }
-  if (f.nivel !== undefined) { where.push('m.nivel = :nivel'); p.nivel = f.nivel; }
-  if (f.tipo) { where.push('m.tipo = :tipo'); p.tipo = f.tipo; }
+  if (f.idioma_id !== undefined) {
+    where.push('m.idioma_id = :idioma_id');
+    p.idioma_id = f.idioma_id;
+  }
+  if (f.nivel !== undefined) {
+    where.push('m.nivel = :nivel');
+    p.nivel = f.nivel;
+  }
+  if (f.tipo) {
+    where.push('m.tipo = :tipo');
+    p.tipo = f.tipo;
+  }
   if (f.busca) {
     where.push(`(instr(sem_acento(m.titulo), sem_acento(:busca)) > 0 OR instr(sem_acento(coalesce(m.autor, '')), sem_acento(:busca)) > 0
       OR instr(sem_acento(coalesce(m.descricao, '')), sem_acento(:busca)) > 0)`);
@@ -62,13 +72,19 @@ export function register(router: Router, db: Db): void {
 
   router.get('/materiais/:id', ({ params }) => buscarMaterial(db, parseId(params.id, 'Material')));
 
-  router.post('/materiais', ({ body }) => {
-    const d = validar(db, exigirCorpo(body));
-    const { lastInsertRowid } = db.run(
-      `INSERT INTO materiais (titulo, tipo, idioma_id, nivel, autor, referencia, descricao)
-       VALUES (:titulo, :tipo, :idioma_id, :nivel, :autor, :referencia, :descricao)`, d);
-    return buscarMaterial(db, lastInsertRowid);
-  }, { status: 201 });
+  router.post(
+    '/materiais',
+    ({ body }) => {
+      const d = validar(db, exigirCorpo(body));
+      const { lastInsertRowid } = db.run(
+        `INSERT INTO materiais (titulo, tipo, idioma_id, nivel, autor, referencia, descricao)
+       VALUES (:titulo, :tipo, :idioma_id, :nivel, :autor, :referencia, :descricao)`,
+        d,
+      );
+      return buscarMaterial(db, lastInsertRowid);
+    },
+    { status: 201 },
+  );
 
   router.put('/materiais/:id', ({ params, body }) => {
     const id = parseId(params.id, 'Material');
@@ -76,7 +92,9 @@ export function register(router: Router, db: Db): void {
     const d = validar(db, { ...atual, ...exigirCorpo(body) });
     db.run(
       `UPDATE materiais SET titulo = :titulo, tipo = :tipo, idioma_id = :idioma_id, nivel = :nivel, autor = :autor,
-         referencia = :referencia, descricao = :descricao WHERE id = :id`, { ...d, id });
+         referencia = :referencia, descricao = :descricao WHERE id = :id`,
+      { ...d, id },
+    );
     return buscarMaterial(db, id);
   });
 

@@ -1,16 +1,39 @@
 // Avaliação configurável (PLANO.md seção 1; docs/pesquisa.md seção 5). Funções puras, sem banco:
 // validação do formulário, validação das respostas (itens + nota), reconstrução das respostas, resultados e CSV.
 import type {
-  Answer, EvaluationForm, Question, QuestionOption, QuestionRow, QuestionType, RatingScale, ResultadoPergunta, ResultadosAvaliacao,
+  Answer,
+  EvaluationForm,
+  Question,
+  QuestionOption,
+  QuestionRow,
+  QuestionType,
+  RatingScale,
+  ResultadoPergunta,
+  ResultadosAvaliacao,
 } from '../../shared/types.ts';
 
 export const TIPOS_PERGUNTA: readonly QuestionType[] = ['open', 'single', 'multiple', 'rating', 'grid'];
 export const LIMITES = {
-  perguntasMin: 1, perguntasMax: 20, opcoesMin: 2, opcoesMax: 10, linhasMin: 1, linhasMax: 10,
-  titulo: 300, descricao: 1000, rotulo: 150, id: 50, maxChars: 5000, porque: 1000, rotuloEscala: 50,
+  perguntasMin: 1,
+  perguntasMax: 20,
+  opcoesMin: 2,
+  opcoesMax: 10,
+  linhasMin: 1,
+  linhasMax: 10,
+  titulo: 300,
+  descricao: 1000,
+  rotulo: 150,
+  id: 50,
+  maxChars: 5000,
+  porque: 1000,
+  rotuloEscala: 50,
 } as const;
 /** Escalas de nota permitidas: 1–5, 1–10 e 0–10. */
-export const ESCALAS: readonly (readonly [number, number])[] = [[1, 5], [1, 10], [0, 10]];
+export const ESCALAS: readonly (readonly [number, number])[] = [
+  [1, 5],
+  [1, 10],
+  [0, 10],
+];
 /** option_id da alternativa "Outro" em perguntas de múltipla escolha com allowOther. */
 export const OUTRO_ID = 'other';
 export const MSG_TRAVADA = 'Avaliação travada: já possui respostas. Duplique para alterar.';
@@ -26,27 +49,38 @@ const arred = (v: number, casas = 2) => Math.round((v + Number.EPSILON) * 10 ** 
 
 // ---------------------------------------------------------------- formulário
 
-export interface ResultadoValidacaoForm { form: EvaluationForm; detalhes: string[] }
+export interface ResultadoValidacaoForm {
+  form: EvaluationForm;
+  detalhes: string[];
+}
 
 /** Valida e normaliza o formulário (descarta campos que não se aplicam ao tipo). `detalhes` vazio = válido. */
 export function validarForm(entrada: unknown): ResultadoValidacaoForm {
   const detalhes: string[] = [];
   let bruto = entrada;
   if (typeof bruto === 'string') {
-    try { bruto = JSON.parse(bruto); } catch { return { form: { questions: [] }, detalhes: ['form não é um JSON válido'] }; }
+    try {
+      bruto = JSON.parse(bruto);
+    } catch {
+      return { form: { questions: [] }, detalhes: ['form não é um JSON válido'] };
+    }
   }
   if (!ehObj(bruto) || !Array.isArray(bruto.questions)) {
     return { form: { questions: [] }, detalhes: ['form deve ser um objeto com a lista "questions"'] };
   }
   const lista = bruto.questions as unknown[];
   if (lista.length < LIMITES.perguntasMin) detalhes.push('O formulário deve ter pelo menos 1 pergunta');
-  if (lista.length > LIMITES.perguntasMax) detalhes.push(`O formulário pode ter no máximo ${LIMITES.perguntasMax} perguntas (tem ${lista.length})`);
+  if (lista.length > LIMITES.perguntasMax)
+    detalhes.push(`O formulário pode ter no máximo ${LIMITES.perguntasMax} perguntas (tem ${lista.length})`);
 
   const ids = new Set<string>();
   const questions: Question[] = [];
   lista.forEach((qb, i) => {
     const ref = `Pergunta ${i + 1}`;
-    if (!ehObj(qb)) { detalhes.push(`${ref}: deve ser um objeto`); return; }
+    if (!ehObj(qb)) {
+      detalhes.push(`${ref}: deve ser um objeto`);
+      return;
+    }
     const erro = (m: string) => detalhes.push(`${ref}${texto(qb.title) ? ` ("${texto(qb.title).slice(0, 40)}")` : ''}: ${m}`);
 
     const id = texto(qb.id);
@@ -56,7 +90,10 @@ export function validarForm(entrada: unknown): ResultadoValidacaoForm {
     ids.add(id);
 
     const type = texto(qb.type) as QuestionType;
-    if (!TIPOS_PERGUNTA.includes(type)) { erro(`tipo deve ser um destes: ${TIPOS_PERGUNTA.join(', ')}`); return; }
+    if (!TIPOS_PERGUNTA.includes(type)) {
+      erro(`tipo deve ser um destes: ${TIPOS_PERGUNTA.join(', ')}`);
+      return;
+    }
     const title = texto(qb.title);
     if (!title) erro('título é obrigatório');
     else if (title.length > LIMITES.titulo) erro(`título deve ter no máximo ${LIMITES.titulo} caracteres`);
@@ -126,12 +163,19 @@ function inteiroOpcional(v: unknown, min: number, max: number, nome: string, err
 }
 
 function validarOpcoes(v: unknown, erro: (m: string) => void, reservados: string[], exigirPontos: boolean): QuestionOption[] {
-  if (!Array.isArray(v)) { erro(`opções são obrigatórias (de ${LIMITES.opcoesMin} a ${LIMITES.opcoesMax})`); return []; }
-  if (v.length < LIMITES.opcoesMin || v.length > LIMITES.opcoesMax) erro(`deve ter de ${LIMITES.opcoesMin} a ${LIMITES.opcoesMax} opções (tem ${v.length})`);
+  if (!Array.isArray(v)) {
+    erro(`opções são obrigatórias (de ${LIMITES.opcoesMin} a ${LIMITES.opcoesMax})`);
+    return [];
+  }
+  if (v.length < LIMITES.opcoesMin || v.length > LIMITES.opcoesMax)
+    erro(`deve ter de ${LIMITES.opcoesMin} a ${LIMITES.opcoesMax} opções (tem ${v.length})`);
   const ids = new Set<string>();
   const out: QuestionOption[] = [];
   v.forEach((o, i) => {
-    if (!ehObj(o)) { erro(`opção ${i + 1} inválida`); return; }
+    if (!ehObj(o)) {
+      erro(`opção ${i + 1} inválida`);
+      return;
+    }
     const id = texto(o.id);
     const label = texto(o.label);
     if (!id) erro(`opção ${i + 1}: id é obrigatório`);
@@ -153,8 +197,12 @@ function validarOpcoes(v: unknown, erro: (m: string) => void, reservados: string
 }
 
 function validarLinhas(v: unknown, erro: (m: string) => void): QuestionRow[] {
-  if (!Array.isArray(v)) { erro(`a grade precisa de linhas (de ${LIMITES.linhasMin} a ${LIMITES.linhasMax})`); return []; }
-  if (v.length < LIMITES.linhasMin || v.length > LIMITES.linhasMax) erro(`a grade deve ter de ${LIMITES.linhasMin} a ${LIMITES.linhasMax} linhas (tem ${v.length})`);
+  if (!Array.isArray(v)) {
+    erro(`a grade precisa de linhas (de ${LIMITES.linhasMin} a ${LIMITES.linhasMax})`);
+    return [];
+  }
+  if (v.length < LIMITES.linhasMin || v.length > LIMITES.linhasMax)
+    erro(`a grade deve ter de ${LIMITES.linhasMin} a ${LIMITES.linhasMax} linhas (tem ${v.length})`);
   const ids = new Set<string>();
   return v.map((r, i) => {
     const id = ehObj(r) ? texto(r.id) : '';
@@ -170,7 +218,10 @@ function validarLinhas(v: unknown, erro: (m: string) => void): QuestionRow[] {
 
 function validarEscala(v: unknown, erro: (m: string) => void): RatingScale {
   const padrao: RatingScale = { style: 'numbers', min: 1, max: 5 };
-  if (!ehObj(v)) { erro('escala é obrigatória (1–5, 1–10 ou 0–10)'); return padrao; }
+  if (!ehObj(v)) {
+    erro('escala é obrigatória (1–5, 1–10 ou 0–10)');
+    return padrao;
+  }
   const style = v.style ?? 'numbers';
   if (style !== 'stars' && style !== 'numbers') erro('estilo da escala deve ser "stars" ou "numbers"');
   const min = Number(v.min);
@@ -192,14 +243,28 @@ function validarEscala(v: unknown, erro: (m: string) => void): RatingScale {
 
 /** Uma linha de avaliacao_resposta_itens. */
 export interface ItemResposta {
-  question_id: string; row_id: string | null; option_id: string | null;
-  value_text: string | null; value_number: number | null; reason: string | null;
+  question_id: string;
+  row_id: string | null;
+  option_id: string | null;
+  value_text: string | null;
+  value_number: number | null;
+  reason: string | null;
 }
 
-export interface ResultadoValidacaoRespostas { itens: ItemResposta[]; score: number | null; detalhes: string[] }
+export interface ResultadoValidacaoRespostas {
+  itens: ItemResposta[];
+  score: number | null;
+  detalhes: string[];
+}
 
 const item = (question_id: string, campos: Partial<ItemResposta>): ItemResposta => ({
-  question_id, row_id: null, option_id: null, value_text: null, value_number: null, reason: null, ...campos,
+  question_id,
+  row_id: null,
+  option_id: null,
+  value_text: null,
+  value_number: null,
+  reason: null,
+  ...campos,
 });
 
 /** Nota de uma escala normalizada para 0–10. */
@@ -228,9 +293,15 @@ export function validarRespostas(form: EvaluationForm, answers: unknown): Result
   const porQuestao = new Map<string, Obj[]>();
   const qIds = new Set(form.questions.map((q) => q.id));
   answers.forEach((a, i) => {
-    if (!ehObj(a) || !texto(a.question_id)) { detalhes.push(`Resposta ${i + 1}: question_id é obrigatório`); return; }
+    if (!ehObj(a) || !texto(a.question_id)) {
+      detalhes.push(`Resposta ${i + 1}: question_id é obrigatório`);
+      return;
+    }
     const qid = texto(a.question_id);
-    if (!qIds.has(qid)) { detalhes.push(`Resposta ${i + 1}: a pergunta "${qid}" não existe nesta avaliação`); return; }
+    if (!qIds.has(qid)) {
+      detalhes.push(`Resposta ${i + 1}: a pergunta "${qid}" não existe nesta avaliação`);
+      return;
+    }
     const l = porQuestao.get(qid) ?? [];
     l.push(a);
     porQuestao.set(qid, l);
@@ -239,8 +310,13 @@ export function validarRespostas(form: EvaluationForm, answers: unknown): Result
   for (const q of form.questions) {
     const lista = porQuestao.get(q.id) ?? [];
     const erro = (m: string) => detalhes.push(`"${q.title}": ${m}`);
-    const faltou = () => { if (q.required) erro('resposta obrigatória'); };
-    if (q.type !== 'grid' && lista.length > 1) { erro('respondida mais de uma vez'); continue; }
+    const faltou = () => {
+      if (q.required) erro('resposta obrigatória');
+    };
+    if (q.type !== 'grid' && lista.length > 1) {
+      erro('respondida mais de uma vez');
+      continue;
+    }
     const a: Obj = lista[0] ?? {};
     const lerPorque = (valor: string | number): string | null => {
       if (!pedePorque(q, valor)) return null;
@@ -253,17 +329,29 @@ export function validarRespostas(form: EvaluationForm, answers: unknown): Result
     switch (q.type) {
       case 'open': {
         const t = texto(a.value_text);
-        if (!t) { faltou(); break; }
+        if (!t) {
+          faltou();
+          break;
+        }
         const max = q.maxChars ?? LIMITES.maxChars;
-        if (t.length > max) { erro(`texto deve ter no máximo ${max} caracteres (tem ${t.length})`); break; }
+        if (t.length > max) {
+          erro(`texto deve ter no máximo ${max} caracteres (tem ${t.length})`);
+          break;
+        }
         itens.push(item(q.id, { value_text: t }));
         break;
       }
       case 'single': {
         const op = texto(a.option_id);
-        if (!op) { faltou(); break; }
+        if (!op) {
+          faltou();
+          break;
+        }
         const opcao = q.options!.find((o) => o.id === op);
-        if (!opcao) { erro(`opção "${op}" não existe`); break; }
+        if (!opcao) {
+          erro(`opção "${op}" não existe`);
+          break;
+        }
         itens.push(item(q.id, { option_id: op, reason: lerPorque(op) }));
         if (q.countsInScore && typeof opcao.points === 'number') notas.push(opcao.points);
         break;
@@ -272,25 +360,47 @@ export function validarRespostas(form: EvaluationForm, answers: unknown): Result
         const bruto = Array.isArray(a.option_ids) ? a.option_ids : texto(a.option_id) ? [a.option_id] : [];
         const escolhidas = [...new Set(bruto.map(texto).filter(Boolean))];
         if (bruto.length !== escolhidas.length) erro('opção repetida ou vazia');
-        if (!escolhidas.length) { faltou(); break; }
+        if (!escolhidas.length) {
+          faltou();
+          break;
+        }
         let ok = true;
         for (const op of escolhidas) {
           if (op === OUTRO_ID) {
-            if (!q.allowOther) { erro('esta pergunta não aceita "Outro"'); ok = false; }
-            else if (!texto(a.value_text)) { erro('descreva a opção "Outro"'); ok = false; }
-            else if (texto(a.value_text).length > LIMITES.rotulo) { erro(`"Outro" deve ter no máximo ${LIMITES.rotulo} caracteres`); ok = false; }
-          } else if (!q.options!.some((o) => o.id === op)) { erro(`opção "${op}" não existe`); ok = false; }
+            if (!q.allowOther) {
+              erro('esta pergunta não aceita "Outro"');
+              ok = false;
+            } else if (!texto(a.value_text)) {
+              erro('descreva a opção "Outro"');
+              ok = false;
+            } else if (texto(a.value_text).length > LIMITES.rotulo) {
+              erro(`"Outro" deve ter no máximo ${LIMITES.rotulo} caracteres`);
+              ok = false;
+            }
+          } else if (!q.options!.some((o) => o.id === op)) {
+            erro(`opção "${op}" não existe`);
+            ok = false;
+          }
         }
-        if (q.maxChoices && escolhidas.length > q.maxChoices) { erro(`escolha no máximo ${q.maxChoices} opção(ões)`); ok = false; }
+        if (q.maxChoices && escolhidas.length > q.maxChoices) {
+          erro(`escolha no máximo ${q.maxChoices} opção(ões)`);
+          ok = false;
+        }
         if (!ok) break;
         for (const op of escolhidas) itens.push(item(q.id, { option_id: op, value_text: op === OUTRO_ID ? texto(a.value_text) : null }));
         break;
       }
       case 'rating': {
         const s = q.scale!;
-        if (a.value_number === undefined || a.value_number === null || a.value_number === '') { faltou(); break; }
+        if (a.value_number === undefined || a.value_number === null || a.value_number === '') {
+          faltou();
+          break;
+        }
         const v = Number(a.value_number);
-        if (!Number.isInteger(v) || v < s.min || v > s.max) { erro(`nota deve ser um número inteiro de ${s.min} a ${s.max}`); break; }
+        if (!Number.isInteger(v) || v < s.min || v > s.max) {
+          erro(`nota deve ser um número inteiro de ${s.min} a ${s.max}`);
+          break;
+        }
         itens.push(item(q.id, { value_number: v, reason: lerPorque(v) }));
         if (q.countsInScore) notas.push(normalizarNota(v, s));
         break;
@@ -302,11 +412,20 @@ export function validarRespostas(form: EvaluationForm, answers: unknown): Result
           const row = texto(r.row_id);
           const op = texto(r.option_id);
           const linha = q.rows!.find((x) => x.id === row);
-          if (!linha) { erro(`linha "${row}" não existe`); continue; }
-          if (vistas.has(row)) { erro(`linha "${linha.label}" respondida mais de uma vez`); continue; }
+          if (!linha) {
+            erro(`linha "${row}" não existe`);
+            continue;
+          }
+          if (vistas.has(row)) {
+            erro(`linha "${linha.label}" respondida mais de uma vez`);
+            continue;
+          }
           if (!op) continue;
           const opcao = q.options!.find((o) => o.id === op);
-          if (!opcao) { erro(`opção "${op}" não existe (linha "${linha.label}")`); continue; }
+          if (!opcao) {
+            erro(`opção "${op}" não existe (linha "${linha.label}")`);
+            continue;
+          }
           vistas.add(row);
           itens.push(item(q.id, { row_id: row, option_id: op }));
           if (typeof opcao.points === 'number') pontos.push(opcao.points);
@@ -348,7 +467,12 @@ export function montarAnswers(form: EvaluationForm, itens: ItemResposta[]): Answ
 
 // ---------------------------------------------------------------- resultados
 
-export interface RespostaComItens { aluno_nome: string; criado_em: string; score: number | null; itens: ItemResposta[] }
+export interface RespostaComItens {
+  aluno_nome: string;
+  criado_em: string;
+  score: number | null;
+  itens: ItemResposta[];
+}
 
 const pct = (n: number, total: number) => (total ? arred((n / total) * 100, 1) : 0);
 const media = (v: number[]) => (v.length ? arred(v.reduce((a, b) => a + b, 0) / v.length) : null);
@@ -360,7 +484,9 @@ export function calcularResultados(avaliacaoId: number, form: EvaluationForm, re
       .filter((r) => r.itens.length);
     const todos = porAluno.flatMap((r) => r.itens);
     const res: ResultadoPergunta = {
-      question_id: q.id, type: q.type, title: q.title,
+      question_id: q.id,
+      type: q.type,
+      title: q.title,
       respostas: porAluno.length,
       com_porque: porAluno.filter((r) => r.itens.some((i) => i.reason)).length,
     };
@@ -375,11 +501,16 @@ export function calcularResultados(avaliacaoId: number, form: EvaluationForm, re
       res.textos = porAluno.map((r) => ({ aluno_nome: r.aluno_nome, texto: r.itens[0].value_text ?? '' }));
     } else if (q.type === 'single') {
       res.opcoes = contar(todos, porAluno.length);
-      if (q.countsInScore) res.media = media(todos.map((i) => q.options!.find((o) => o.id === i.option_id)?.points).filter((p): p is number => typeof p === 'number'));
+      if (q.countsInScore)
+        res.media = media(
+          todos.map((i) => q.options!.find((o) => o.id === i.option_id)?.points).filter((p): p is number => typeof p === 'number'),
+        );
       res.textos = porques;
     } else if (q.type === 'multiple') {
       res.opcoes = contar(todos, porAluno.length, q.allowOther ? [{ id: OUTRO_ID, label: 'Outro' }] : []);
-      res.textos = porAluno.flatMap((r) => r.itens.filter((i) => i.option_id === OUTRO_ID && i.value_text).map((i) => ({ aluno_nome: r.aluno_nome, texto: i.value_text! })));
+      res.textos = porAluno.flatMap((r) =>
+        r.itens.filter((i) => i.option_id === OUTRO_ID && i.value_text).map((i) => ({ aluno_nome: r.aluno_nome, texto: i.value_text! })),
+      );
     } else if (q.type === 'rating') {
       const valores = todos.map((i) => i.value_number!).filter((v) => typeof v === 'number');
       res.media = media(valores);
@@ -392,7 +523,9 @@ export function calcularResultados(avaliacaoId: number, form: EvaluationForm, re
       res.linhas = q.rows!.map((row) => {
         const daLinha = todos.filter((i) => i.row_id === row.id);
         return {
-          row_id: row.id, label: row.label, opcoes: contar(daLinha, daLinha.length),
+          row_id: row.id,
+          label: row.label,
+          opcoes: contar(daLinha, daLinha.length),
           media: temPontos ? media(daLinha.map((i) => pontosDe(i.option_id) as number)) : null,
         };
       });
@@ -428,21 +561,34 @@ export function gerarCsv(form: EvaluationForm, respostas: RespostaComItens[]): s
   const cab = ['Aluno', 'Data', 'Nota'];
   type Col = (itens: ItemResposta[]) => unknown;
   const cols: Col[] = [];
-  const rotulo = (q: Question, id: string | null) => (id === OUTRO_ID ? 'Outro' : q.options?.find((o) => o.id === id)?.label ?? id ?? '');
+  const rotulo = (q: Question, id: string | null) => (id === OUTRO_ID ? 'Outro' : (q.options?.find((o) => o.id === id)?.label ?? id ?? ''));
   for (const q of form.questions) {
     const meus = (itens: ItemResposta[]) => itens.filter((i) => i.question_id === q.id);
     if (q.type === 'grid') {
       for (const row of q.rows!) {
         cab.push(`${q.title} - ${row.label}`);
-        cols.push((itens) => { const i = meus(itens).find((x) => x.row_id === row.id); return i ? rotulo(q, i.option_id) : null; });
+        cols.push((itens) => {
+          const i = meus(itens).find((x) => x.row_id === row.id);
+          return i ? rotulo(q, i.option_id) : null;
+        });
       }
       continue;
     }
     cab.push(q.title);
     if (q.type === 'open') cols.push((itens) => meus(itens)[0]?.value_text ?? null);
     else if (q.type === 'rating') cols.push((itens) => meus(itens)[0]?.value_number ?? null);
-    else if (q.type === 'single') cols.push((itens) => { const i = meus(itens)[0]; return i ? rotulo(q, i.option_id) : null; });
-    else cols.push((itens) => meus(itens).map((i) => (i.option_id === OUTRO_ID ? `Outro: ${i.value_text ?? ''}` : rotulo(q, i.option_id))).join(', ') || null);
+    else if (q.type === 'single')
+      cols.push((itens) => {
+        const i = meus(itens)[0];
+        return i ? rotulo(q, i.option_id) : null;
+      });
+    else
+      cols.push(
+        (itens) =>
+          meus(itens)
+            .map((i) => (i.option_id === OUTRO_ID ? `Outro: ${i.value_text ?? ''}` : rotulo(q, i.option_id)))
+            .join(', ') || null,
+      );
     if (q.askReason) {
       cab.push(`${q.title} (porquê)`);
       cols.push((itens) => meus(itens)[0]?.reason ?? null);
@@ -457,6 +603,12 @@ export function gerarCsv(form: EvaluationForm, respostas: RespostaComItens[]): s
 
 /** Nome de arquivo seguro: "avaliacao-12-avaliacao-de-nivel.csv". */
 export function nomeArquivoCsv(id: number, titulo: string): string {
-  const slug = titulo.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+  const slug = titulo
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50);
   return `avaliacao-${id}${slug ? '-' + slug : ''}.csv`;
 }

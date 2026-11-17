@@ -16,7 +16,8 @@ export function dashboard(db: Db, hojeRef: string): Dashboard {
        (SELECT coalesce(sum(valor_pago), 0) FROM mensalidades WHERE status = 'paga' AND substr(data_pagamento, 1, 7) = :mes) AS receita_mes,
        (SELECT coalesce(sum(valor), 0) FROM mensalidades WHERE status = 'pendente' AND competencia = :mes) AS a_receber_mes,
        (SELECT count(DISTINCT aluno_id) FROM mensalidades WHERE status = 'pendente' AND vencimento < :hoje) AS inadimplentes`,
-    { ano, mes, hoje: hojeRef })!;
+    { ano, mes, hoje: hojeRef },
+  )!;
   return { ...r, receita_mes: arredondar(r.receita_mes), a_receber_mes: arredondar(r.a_receber_mes), ano };
 }
 

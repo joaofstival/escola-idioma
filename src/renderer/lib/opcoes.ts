@@ -3,7 +3,14 @@ import type { OpcaoSelect } from '@/components/campos';
 import { NIVEIS, anosLetivos, nivel } from '@/lib/format';
 import type { MaterialTipo } from '../../shared/types.ts';
 
-export const TIPO_MATERIAL: Record<MaterialTipo, string> = { livro: 'Livro', apostila: 'Apostila', audio: 'Áudio', video: 'Vídeo', link: 'Link', outro: 'Outro' };
+export const TIPO_MATERIAL: Record<MaterialTipo, string> = {
+  livro: 'Livro',
+  apostila: 'Apostila',
+  audio: 'Áudio',
+  video: 'Vídeo',
+  link: 'Link',
+  outro: 'Outro',
+};
 
 /** Níveis 1–12 com a faixa QECR; `vazio` adiciona a opção "todos" (valor ''). */
 export const opcoesNivel = (vazio?: string): OpcaoSelect[] => [
