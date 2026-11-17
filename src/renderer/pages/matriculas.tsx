@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CircleCheck, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { CampoSelect } from '@/components/campos';
+import { CampoBusca, CampoSelect } from '@/components/campos';
 import { ConfirmarApagar } from '@/components/confirmar-apagar';
 import { EstadoErro, EstadoVazio, TabelaCarregando } from '@/components/estados';
 import { BarraFiltros, FiltroSelect } from '@/components/filtros';
@@ -237,11 +237,13 @@ function FormNova({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(enviar)} noValidate className="flex flex-col gap-4">
           <h2 className="text-base font-semibold">Dados da matrícula</h2>
-          <CampoSelect<ValoresNova>
+          <CampoBusca<ValoresNova>
             nome="aluno_id"
             rotulo="Aluno"
             obrigatorio
             placeholder="Selecione o aluno"
+            buscaPlaceholder="Digite o nome ou o documento"
+            semResultado="Nenhum aluno encontrado."
             opcoes={alunos.map((a) => ({ valor: String(a.id), rotulo: a.nome + (a.documento ? ` · ${a.documento}` : '') }))}
           />
           <CampoSelect<ValoresNova> nome="ano_letivo" rotulo="Ano letivo" obrigatorio opcoes={opcoesAno(Number(ano))} />

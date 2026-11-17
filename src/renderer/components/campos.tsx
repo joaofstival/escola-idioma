@@ -1,9 +1,11 @@
-import type { ComponentProps, ReactNode } from 'react';
+import { useId, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { Check, ChevronDown, Search } from 'lucide-react';
 import { useFormContext, type FieldPath, type FieldValues } from 'react-hook-form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
@@ -148,6 +150,143 @@ export function CampoCheck<T extends FieldValues>({ nome, rotulo, dica, classNam
           <FormMessage />
         </FormItem>
       )}
+    />
+  );
+}
+
+const semAcento = (t: string) =>
+  t
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+
+/** Seleção com busca: digite parte do nome (sem acento, maiúscula ou minúscula) e escolha na lista. Para listas grandes. */
+export function CampoBusca<T extends FieldValues>({
+  nome,
+  rotulo,
+  dica,
+  obrigatorio,
+  className,
+  opcoes,
+  placeholder = 'Selecione',
+  buscaPlaceholder = 'Digite para buscar',
+  semResultado = 'Nada encontrado.',
+}: Base<T> & { opcoes: OpcaoSelect[]; placeholder?: string; buscaPlaceholder?: string; semResultado?: string }) {
+  const { control } = useFormContext<T>();
+  const [aberto, setAberto] = useState(false);
+  const [busca, setBusca] = useState('');
+  const [ativo, setAtivo] = useState(0);
+  const idLista = useId();
+  const campoBusca = useRef<HTMLInputElement>(null);
+  const filtradas = useMemo(() => {
+    const termo = semAcento(busca.trim());
+    return termo ? opcoes.filter((o) => semAcento(o.rotulo).includes(termo)) : opcoes;
+  }, [opcoes, busca]);
+
+  return (
+    <FormField
+      control={control}
+      name={nome}
+      render={({ field }) => {
+        const escolhida = opcoes.find((o) => o.valor === String(field.value ?? ''));
+        const escolher = (o: OpcaoSelect) => {
+          field.onChange(o.valor);
+          setAberto(false);
+        };
+        return (
+          <FormItem className={className}>
+            <Rotulo texto={rotulo} obrigatorio={obrigatorio} />
+            <Popover
+              open={aberto}
+              onOpenChange={(a) => {
+                setAberto(a);
+                if (a) {
+                  setBusca('');
+                  setAtivo(0);
+                } else field.onBlur();
+              }}
+            >
+              <FormControl>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    aria-expanded={aberto}
+                    aria-controls={idLista}
+                    className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-sm whitespace-nowrap aria-invalid:border-destructive"
+                  >
+                    <span className={cn('truncate', !escolhida && 'text-muted-foreground')}>{escolhida?.rotulo ?? placeholder}</span>
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  </button>
+                </PopoverTrigger>
+              </FormControl>
+              <PopoverContent
+                onOpenAutoFocus={(e) => {
+                  e.preventDefault();
+                  campoBusca.current?.focus();
+                }}
+              >
+                <div className="flex items-center gap-2 border-b px-2 pb-1">
+                  <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <input
+                    ref={campoBusca}
+                    aria-label={`Buscar: ${rotulo}`}
+                    aria-controls={idLista}
+                    value={busca}
+                    placeholder={buscaPlaceholder}
+                    onChange={(e) => {
+                      setBusca(e.target.value);
+                      setAtivo(0);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setAtivo((i) => Math.min(i + 1, filtradas.length - 1));
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setAtivo((i) => Math.max(i - 1, 0));
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const o = filtradas[ativo];
+                        if (o && !o.desabilitada) escolher(o);
+                      }
+                    }}
+                    className="h-8 w-full bg-transparent text-sm outline-hidden placeholder:text-muted-foreground"
+                  />
+                </div>
+                <ul id={idLista} role="listbox" aria-label={rotulo} className="max-h-60 overflow-y-auto pt-1">
+                  {filtradas.length === 0 && <li className="px-2 py-3 text-sm text-muted-foreground">{semResultado}</li>}
+                  {filtradas.map((o, i) => (
+                    // teclado: tratado no campo de busca (padrão combobox, foco fica no input)
+                    // eslint-disable-next-line jsx-a11y/click-events-have-key-events
+                    <li
+                      key={o.valor}
+                      role="option"
+                      aria-selected={o.valor === String(field.value ?? '')}
+                      aria-disabled={o.desabilitada || undefined}
+                      ref={(el) => {
+                        if (el && i === ativo) el.scrollIntoView?.({ block: 'nearest' });
+                      }}
+                      onMouseEnter={() => setAtivo(i)}
+                      onClick={() => !o.desabilitada && escolher(o)}
+                      className={cn(
+                        'flex cursor-pointer items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm',
+                        i === ativo && 'bg-accent text-accent-foreground',
+                        o.desabilitada && 'cursor-not-allowed opacity-50',
+                      )}
+                    >
+                      <span className="truncate">{o.rotulo}</span>
+                      {o.valor === String(field.value ?? '') && <Check className="size-4 shrink-0" aria-hidden="true" />}
+                    </li>
+                  ))}
+                </ul>
+              </PopoverContent>
+            </Popover>
+            {dica && <FormDescription>{dica}</FormDescription>}
+            <FormMessage />
+          </FormItem>
+        );
+      }}
     />
   );
 }
