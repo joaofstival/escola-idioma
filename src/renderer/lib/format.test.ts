@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { brl, cefr, data, nivel, ou, competencia } from './format.ts';
+import { brl, dinheiro, cefr, data, nivel, ou, competencia } from './format.ts';
 
 test('data converte aaaa-mm-dd sem deslocar por fuso e usa "—" para vazio', () => {
   assert.equal(data('2026-11-16'), '16/11/2026');
@@ -32,4 +32,10 @@ test('nível numérico mapeia para a faixa QECR', () => {
 test('competência aaaa-mm vira mm/aaaa', () => {
   assert.equal(competencia('2026-03'), '03/2026');
   assert.equal(competencia(undefined), '—');
+});
+
+test('dinheiro não arredonda para R$ 0,00 um valor entre 0 e 1 centavo', () => {
+  assert.equal(dinheiro(0.0037).replace(/\s/g, ' '), 'R$ 0,0037');
+  assert.equal(dinheiro(0).replace(/\s/g, ' '), 'R$ 0,00');
+  assert.equal(dinheiro(5.5).replace(/\s/g, ' '), 'R$ 5,50');
 });

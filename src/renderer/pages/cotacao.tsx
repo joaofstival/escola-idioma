@@ -141,7 +141,7 @@ export default function Cotacao() {
             Converter valor
           </h2>
           <form onSubmit={converter} noValidate className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="conv-valor">Valor</Label>
               <Input
                 id="conv-valor"
@@ -153,14 +153,14 @@ export default function Cotacao() {
                 aria-describedby={erroValor ? 'conv-valor-erro' : undefined}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>De</Label>
-              <FiltroSelect rotulo="Moeda de origem" valor={de} aoMudar={setDe} opcoes={opcoes} className="w-28" />
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="conv-de">De</Label>
+              <FiltroSelect id="conv-de" rotulo="Moeda de origem" valor={de} aoMudar={setDe} opcoes={opcoes} className="w-28" />
             </div>
             <ArrowRight className="mb-2.5 size-4 text-muted-foreground" aria-hidden="true" />
-            <div className="space-y-1.5">
-              <Label>Para</Label>
-              <FiltroSelect rotulo="Moeda de destino" valor={para} aoMudar={setPara} opcoes={opcoes} className="w-28" />
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="conv-para">Para</Label>
+              <FiltroSelect id="conv-para" rotulo="Moeda de destino" valor={para} aoMudar={setPara} opcoes={opcoes} className="w-28" />
             </div>
             <Button type="submit" disabled={convertendo || !q.data}>
               {convertendo ? 'Convertendo…' : 'Converter valor'}

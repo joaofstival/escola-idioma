@@ -14,8 +14,10 @@ export function FiltroSelect({
   className,
   desabilitado,
   placeholder,
+  id,
 }: {
   placeholder?: string;
+  id?: string;
   valor: string;
   aoMudar: (v: string) => void;
   opcoes: OpcaoFiltro[];
@@ -25,7 +27,7 @@ export function FiltroSelect({
 }) {
   return (
     <Select value={valor} onValueChange={aoMudar} disabled={desabilitado}>
-      <SelectTrigger aria-label={rotulo} className={className}>
+      <SelectTrigger id={id} aria-label={rotulo} className={className}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

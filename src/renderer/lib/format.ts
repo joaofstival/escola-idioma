@@ -11,8 +11,14 @@ export const brl = (n: number | null | undefined): string =>
 
 export function dinheiro(n: number | null | undefined, moeda = 'BRL'): string {
   if (n === null || n === undefined || Number.isNaN(n)) return VAZIO;
+  // Valor entre 0 e 1 centavo (ex.: 1 peso argentino ≈ R$ 0,0037) não pode virar "0,00": mostra até 4 casas.
+  const pequeno = n !== 0 && Math.abs(n) < 0.01;
   try {
-    return n.toLocaleString('pt-BR', { style: 'currency', currency: moeda });
+    return n.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: moeda,
+      ...(pequeno ? { minimumFractionDigits: 2, maximumFractionDigits: 4 } : {}),
+    });
   } catch {
     return `${moeda} ${n.toFixed(2)}`;
   }
