@@ -132,7 +132,7 @@ function AbrirFormTurma({ turma, padrao, aoFechar, aoSalvar }: { turma: Turma | 
 function Lista() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const ano = params.get('ano') || String(anoAtual());
+  const ano = String(Number(params.get('ano')) || anoAtual());
   const idiomaId = params.get('idioma_id') ?? '';
   const nivelF = params.get('nivel') ?? '';
   const professorId = params.get('professor_id') ?? '';

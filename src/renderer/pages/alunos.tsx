@@ -254,7 +254,7 @@ function Detalhe({ id }: { id: number }) {
   const estrangeiro = !!moeda && moeda !== 'BRL';
   // cotação do dia: se falhar, só avisa; valores seguem em BRL
   const cot = useQuery(() => (estrangeiro ? api.get<Conversao>('/cotacao/converter', { valor: 1, de: 'BRL', para: moeda }) : Promise.resolve(null)), [estrangeiro, moeda]);
-  const taxa = cot.data ? cot.data.taxa || cot.data.resultado : null;
+  const taxa = cot.loading ? null : cot.data ? cot.data.taxa || cot.data.resultado : null;
   const conv = (v: number) => (taxa && moeda ? dinheiro(v * taxa, moeda) : null);
 
   const voltar = (

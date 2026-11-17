@@ -118,7 +118,7 @@ export default function Professores() {
   }
 
   const botaoNovo = (
-    <Button onClick={() => setEditando('novo')} disabled={!idiomas.data} >
+    <Button onClick={() => (idiomas.data ? setEditando('novo') : (toast.error('Os idiomas ainda não carregaram. Tentando de novo.'), idiomas.reload()))}>
       <Plus /> Novo professor
     </Button>
   );

@@ -30,12 +30,12 @@ import type { Aluno, Idioma, Matricula, SugestaoRematricula, Turma } from '../..
 type Aba = 'lista' | 'nova' | 'rematriculas';
 const vagas = (t: Pick<Turma, 'capacidade' | 'ocupacao'>) => Math.max(0, t.capacidade - (t.ocupacao ?? 0));
 
-type Mudar = (k: string, v: string) => void;
+type Mudar = (k: string, v: string, extra?: Record<string, string>) => void;
 
 // ---------- Aba: lista ----------
 
 function AbaLista({ params, mudar }: { params: URLSearchParams; mudar: Mudar }) {
-  const ano = params.get('ano') || String(anoAtual());
+  const ano = String(Number(params.get('ano')) || anoAtual());
   const turmaId = params.get('turma_id') ?? '';
   const [status, setStatus] = useState('');
   const turmas = useQuery(() => api.get<Turma[]>('/turmas', { ano }), [ano]);
@@ -59,7 +59,7 @@ function AbaLista({ params, mudar }: { params: URLSearchParams; mudar: Mudar }) 
   return (
     <>
       <BarraFiltros total={mats ? `${mats.length} matrícula(s) · ${mats.filter((m) => m.status === 'ativa').length} ativa(s)` : undefined}>
-        <FiltroSelect rotulo="Ano letivo" valor={ano} aoMudar={(v) => { mudar('ano', v); mudar('turma_id', ''); }} opcoes={opcoesAno(Number(ano))} />
+        <FiltroSelect rotulo="Ano letivo" valor={ano} aoMudar={(v) => mudar('ano', v, { turma_id: '' })} opcoes={opcoesAno(Number(ano))} />
         <FiltroSelect className="min-w-56" rotulo="Turma" valor={turmaId} aoMudar={(v) => mudar('turma_id', v)} opcoes={[{ valor: '', rotulo: 'Todas as turmas' }, ...(turmas.data ?? []).map((t) => ({ valor: String(t.id), rotulo: t.nome }))]} />
         <FiltroSelect rotulo="Situação" valor={status} aoMudar={setStatus} opcoes={[{ valor: '', rotulo: 'Todas' }, { valor: 'ativa', rotulo: 'Ativas' }, { valor: 'concluida', rotulo: 'Concluídas' }, { valor: 'cancelada', rotulo: 'Canceladas' }]} />
       </BarraFiltros>
@@ -68,7 +68,7 @@ function AbaLista({ params, mudar }: { params: URLSearchParams; mudar: Mudar }) 
         <EstadoErro erro={lista.error} aoRecarregar={lista.reload} />
       ) : mats && mats.length === 0 ? (
         <EstadoVazio titulo={`Nenhuma matrícula em ${ano} com esses filtros`} descricao="Ajuste os filtros ou crie uma matrícula.">
-          <Button onClick={() => mudar('aba', 'nova')}><Plus /> Nova matrícula</Button>
+          <Button onClick={() => mudar('aba', 'nova', { turma_id: '', ano: '' })}><Plus /> Nova matrícula</Button>
         </EstadoVazio>
       ) : (
         <Table>
@@ -175,7 +175,7 @@ function FormNova({ alunos, idiomas, anoInicial, params }: { alunos: Aluno[]; id
           <CampoSelect<ValoresNova> nome="aluno_id" rotulo="Aluno" obrigatorio placeholder="Selecione o aluno" opcoes={alunos.map((a) => ({ valor: String(a.id), rotulo: a.nome + (a.documento ? ` · ${a.documento}` : '') }))} />
           <CampoSelect<ValoresNova> nome="ano_letivo" rotulo="Ano letivo" obrigatorio opcoes={opcoesAno(Number(ano))} />
           <CampoSelect<ValoresNova>
-            nome="turma_id" rotulo="Turma" obrigatorio disabled={turmasQ.loading && !turmasQ.data}
+            nome="turma_id" rotulo="Turma" obrigatorio disabled={turmasQ.loading}
             placeholder={turmasQ.loading ? 'Carregando turmas…' : turmas.length ? 'Selecione a turma' : 'Nenhuma turma neste ano'}
             opcoes={turmas.map((x) => ({ valor: String(x.id), desabilitada: vagas(x) === 0, rotulo: `${x.nome} — ${vagas(x) ? `${vagas(x)} vaga(s)` : 'lotada'} · ${brl(mensalidade.get(x.idioma_id))}/mês` }))}
           />
@@ -228,7 +228,7 @@ function FormNova({ alunos, idiomas, anoInicial, params }: { alunos: Aluno[]; id
 // ---------- Aba: rematrículas ----------
 
 function AbaRematriculas({ params, mudar }: { params: URLSearchParams; mudar: Mudar }) {
-  const ano = params.get('ano') || String(anoAtual());
+  const ano = String(Number(params.get('ano')) || anoAtual());
   const q = useQuery(() => Promise.all([
     api.get<SugestaoRematricula[]>('/matriculas/sugestoes-rematricula', { ano }),
     api.get<Turma[]>('/turmas', { ano }),
@@ -239,7 +239,7 @@ function AbaRematriculas({ params, mudar }: { params: URLSearchParams; mudar: Mu
 
   // destino padrão = primeira turma sugerida
   useEffect(() => {
-    if (sugs) setDestinos(Object.fromEntries(sugs.map((s) => [s.aluno_id, s.turmas_sugeridas[0] ? String(s.turmas_sugeridas[0].id) : ''])));
+    if (sugs) setDestinos((prev) => Object.fromEntries(sugs.map((s) => [s.aluno_id, prev[s.aluno_id] ?? (s.turmas_sugeridas[0] ? String(s.turmas_sugeridas[0].id) : '')])));
   }, [q.data]); // eslint-disable-line
 
   async function rematricular(s: SugestaoRematricula) {
@@ -351,7 +351,7 @@ export default function Matriculas() {
   const [params, setParams] = useSearchParams();
   const abaParam = params.get('aba');
   const aba: Aba = abaParam === 'nova' ? 'nova' : abaParam === 'rematriculas' || abaParam === 'rematricula' ? 'rematriculas' : 'lista';
-  const mudar: Mudar = (k, v) => setParams((p) => { const n = new URLSearchParams(p); if (v) n.set(k, v); else n.delete(k); return n; }, { replace: true });
+  const mudar: Mudar = (k, v, extra = {}) => setParams((p) => { const n = new URLSearchParams(p); for (const [kk, vv] of Object.entries({ [k]: v, ...extra })) { if (vv) n.set(kk, vv); else n.delete(kk); } return n; }, { replace: true });
   // trocar de aba limpa os filtros da anterior
   const irPara = (a: string) => setParams(a === 'lista' ? {} : { aba: a }, { replace: true });
 

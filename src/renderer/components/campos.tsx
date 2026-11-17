@@ -81,7 +81,7 @@ export function CampoSelect<T extends FieldValues>({
       render={({ field }) => (
         <FormItem className={className}>
           <Rotulo texto={rotulo} obrigatorio={obrigatorio} />
-          <Select value={field.value ? String(field.value) : VAZIO_INTERNO} onValueChange={(v) => field.onChange(v === VAZIO_INTERNO ? '' : v)} disabled={disabled}>
+          <Select value={field.value ? String(field.value) : opcoes.some((o) => !o.valor) ? VAZIO_INTERNO : ''} onValueChange={(v) => field.onChange(v === VAZIO_INTERNO ? '' : v)} disabled={disabled}>
             <FormControl>
               <SelectTrigger className="w-full" onBlur={field.onBlur}>
                 <SelectValue placeholder={placeholder} />
