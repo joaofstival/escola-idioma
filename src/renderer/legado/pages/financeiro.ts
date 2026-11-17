@@ -7,7 +7,7 @@ import { api, ApiError } from '../api.ts';
 import {
   $, brl, competencia as fmtCompetencia, confirmDialog, date, empty, esc, modal, options, pill, showError, toast,
 } from '../ui.ts';
-import type { Inadimplente, Mensalidade, ResumoFinanceiro } from '../../shared/types.ts';
+import type { Inadimplente, Mensalidade, ResumoFinanceiro } from '../../../shared/types.ts';
 
 type FiltroStatus = '' | 'pendente' | 'paga' | 'atrasada' | 'cancelada';
 type Aba = 'mensalidades' | 'inadimplentes';

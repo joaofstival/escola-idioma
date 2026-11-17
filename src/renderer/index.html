@@ -4,43 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Escola de Idiomas — Gestão</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="avaliacoes.css">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'">
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="brand">Escola<span>Idiomas</span></div>
-      <nav id="nav">
-        <div class="nav-group">Geral</div>
-        <a href="#/dashboard" data-route="dashboard">Painel</a>
-        <div class="nav-group">Cadastros</div>
-        <a href="#/alunos" data-route="alunos">Alunos</a>
-        <a href="#/professores" data-route="professores">Professores</a>
-        <a href="#/idiomas" data-route="idiomas">Idiomas e valores</a>
-        <a href="#/turmas" data-route="turmas">Turmas</a>
-        <div class="nav-group">Ano letivo</div>
-        <a href="#/matriculas" data-route="matriculas">Matrículas</a>
-        <a href="#/materiais" data-route="materiais">Materiais didáticos</a>
-        <a href="#/avaliacoes" data-route="avaliacoes">Avaliações</a>
-        <div class="nav-group">Financeiro</div>
-        <a href="#/financeiro" data-route="financeiro">Mensalidades</a>
-        <a href="#/cotacao" data-route="cotacao">Cotação de moedas</a>
-        <div class="nav-group">Ferramentas</div>
-        <a href="#/traducao" data-route="traducao">Tradutor</a>
-      </nav>
-    </aside>
-    <main>
-      <header class="topbar">
-        <button class="btn-icon menu-toggle" aria-label="Menu" id="menuToggle">☰</button>
-        <h1 id="pageTitle">Painel</h1>
-      </header>
-      <section id="view" class="view" aria-live="polite"></section>
-    </main>
-  </div>
-  <div id="modalRoot"></div>
-  <div id="toastRoot" class="toast-root"></div>
-  <script type="module" src="app.js"></script>
+  <div id="root"></div>
+  <script type="module" src="./main.tsx"></script>
 </body>
 </html>

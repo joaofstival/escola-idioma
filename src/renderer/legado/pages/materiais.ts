@@ -1,7 +1,7 @@
 // Materiais didáticos: filtros (idioma, nível, tipo, busca), agrupamento idioma → nível e cadastro em modal.
 // Links http(s) abrem no navegador padrão (o processo main intercepta target=_blank).
 import type { Page, PageParams } from '../page.ts';
-import type { Idioma, Material, MaterialTipo } from '../../shared/types.ts';
+import type { Idioma, Material, MaterialTipo } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { $, cefr, confirmDialog, empty, esc, formData, showError, toast } from '../ui.ts';
 import { carregando, debounce, estadoErro, formModal, opcoesNivel, semVazios } from '../comum.ts';

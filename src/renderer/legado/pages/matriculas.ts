@@ -1,7 +1,7 @@
 // Matrículas: abas "Matrículas do ano" (filtros e cancelamento), "Nova matrícula" e "Rematrículas" (sugestões do ano anterior).
 // Aba inicial e pré-seleção pela query: #/matriculas?aba=nova&aluno_id=1&turma_id=2 | ?aba=rematriculas
 import type { Page, PageParams } from '../page.ts';
-import type { Aluno, Idioma, Matricula, MatriculaStatus, SugestaoRematricula, Turma } from '../../shared/types.ts';
+import type { Aluno, Idioma, Matricula, MatriculaStatus, SugestaoRematricula, Turma } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { $, brl, confirmDialog, date, empty, esc, nivel, pill, showError, toast } from '../ui.ts';
 import { anoAtual, barraOcupacao, carregando, estadoErro, opcoesAno } from '../comum.ts';
