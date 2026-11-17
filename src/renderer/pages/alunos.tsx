@@ -13,7 +13,8 @@ import { BarraFiltros, FiltroSelect } from '@/components/filtros';
 import { FormDialog } from '@/components/form-dialog';
 import { MenuAcoes } from '@/components/menu-acoes';
 import { PageHeader } from '@/components/page-header';
-import { StatusBadge, type Tom } from '@/components/status-badge';
+import { StatusBadge } from '@/components/status-badge';
+import { StatusMatricula } from '@/components/status-matricula';
 import { Button } from '@/components/ui/button';
 import { FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,7 @@ import { useQuery } from '@/hooks/use-query';
 import { api, mensagemErro } from '@/lib/api';
 import { MOEDAS, brl, competencia, data, dinheiro, nivel, ou } from '@/lib/format';
 import { emailOpcional, nuloSeVazio, textoObrigatorio, textoOpcional } from '@/lib/validacao';
-import type { Aluno, Conversao, HistoricoAluno, MatriculaStatus, Mensalidade } from '../../shared/types.ts';
+import type { Aluno, Conversao, HistoricoAluno, Mensalidade } from '../../shared/types.ts';
 
 // ---------- Formulário ----------
 
@@ -211,10 +212,6 @@ function Lista() {
 
 // ---------- Detalhe / histórico ----------
 
-const STATUS_MAT: Record<MatriculaStatus, [string, Tom]> = {
-  ativa: ['Ativa', 'ok'], concluida: ['Concluída', 'info'], cancelada: ['Cancelada', 'neutro'],
-};
-
 function StatusMensalidade({ m }: { m: Mensalidade }) {
   if (m.status === 'paga') return <><StatusBadge tom="ok">Paga</StatusBadge><div className="text-xs text-muted-foreground">em {data(m.data_pagamento)}</div></>;
   if (m.status === 'cancelada') return <StatusBadge tom="neutro">Cancelada</StatusBadge>;
@@ -316,7 +313,7 @@ function Detalhe({ id }: { id: number }) {
                   <TableCell><Link to={`/turmas/${m.turma_id}`} className="text-primary hover:underline">{m.turma_nome || `Turma ${m.turma_id}`}</Link></TableCell>
                   <TableCell>{m.nivel ? nivel(m.nivel) : '—'}</TableCell>
                   <TableCell>{m.tipo === 'rematricula' ? 'Rematrícula' : 'Matrícula'}</TableCell>
-                  <TableCell><StatusBadge tom={STATUS_MAT[m.status][1]}>{STATUS_MAT[m.status][0]}</StatusBadge></TableCell>
+                  <TableCell><StatusMatricula status={m.status} /></TableCell>
                   <TableCell className="text-right tabular-nums">{data(m.data)}</TableCell>
                 </TableRow>
               ))}

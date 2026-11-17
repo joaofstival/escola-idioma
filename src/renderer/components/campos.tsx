@@ -66,6 +66,7 @@ export function CampoTextarea<T extends FieldValues>({ nome, rotulo, dica, obrig
 export interface OpcaoSelect {
   valor: string;
   rotulo: string;
+  desabilitada?: boolean;
 }
 
 /** Select (valores sempre string; a tela converte). Item vazio: passe uma opção com valor "" e ela vira o texto de "nenhum". */
@@ -88,7 +89,7 @@ export function CampoSelect<T extends FieldValues>({
             </FormControl>
             <SelectContent>
               {opcoes.map((o) => (
-                <SelectItem key={o.valor || VAZIO_INTERNO} value={o.valor || VAZIO_INTERNO}>
+                <SelectItem key={o.valor || VAZIO_INTERNO} value={o.valor || VAZIO_INTERNO} disabled={o.desabilitada}>
                   {o.rotulo}
                 </SelectItem>
               ))}

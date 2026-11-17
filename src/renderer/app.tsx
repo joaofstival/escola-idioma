@@ -4,14 +4,14 @@ import { Toaster } from '@/components/ui/sonner';
 import EmMigracao from '@/pages/em-migracao';
 import Alunos from '@/pages/alunos';
 import Idiomas from '@/pages/idiomas';
+import Turmas from '@/pages/turmas';
+import Materiais from '@/pages/materiais';
+import Matriculas from '@/pages/matriculas';
 import Professores from '@/pages/professores';
 
 /** Telas ainda não portadas (plano 03). Cada tela portada troca seu item por uma rota própria. */
 const EM_MIGRACAO: Record<string, string> = {
   dashboard: 'Painel',
-  turmas: 'Turmas',
-  matriculas: 'Matrículas',
-  materiais: 'Materiais didáticos',
   avaliacoes: 'Avaliações',
   financeiro: 'Mensalidades',
   cotacao: 'Cotação de moedas',
@@ -25,6 +25,9 @@ export default function App() {
         <Route element={<Shell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="alunos/:id?" element={<Alunos />} />
+          <Route path="turmas/:id?" element={<Turmas />} />
+          <Route path="materiais" element={<Materiais />} />
+          <Route path="matriculas" element={<Matriculas />} />
           <Route path="idiomas" element={<Idiomas />} />
           <Route path="professores" element={<Professores />} />
           {Object.entries(EM_MIGRACAO).map(([rota, titulo]) => (

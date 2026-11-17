@@ -17,8 +17,8 @@ export interface AlvoApagar {
 
 /** Confirmação de ação destrutiva citando o nome do item. `alvo` nulo = fechado. */
 export function ConfirmarApagar({
-  alvo, aoCancelar, aoConfirmar, rotuloConfirmar, titulo,
-}: { alvo: AlvoApagar | null; aoCancelar: () => void; aoConfirmar: () => void; rotuloConfirmar?: string; titulo?: (a: AlvoApagar) => string }) {
+  alvo, aoCancelar, aoConfirmar, rotuloConfirmar, rotuloCancelar, titulo,
+}: { alvo: AlvoApagar | null; aoCancelar: () => void; aoConfirmar: () => void; rotuloConfirmar?: string; rotuloCancelar?: string; titulo?: (a: AlvoApagar) => string }) {
   // mantém o último alvo durante a animação de fechar (evita texto vazio piscando)
   const ultimo = useRef<AlvoApagar | null>(null);
   if (alvo) ultimo.current = alvo;
@@ -33,7 +33,7 @@ export function ConfirmarApagar({
           <AlertDialogDescription>{a?.aviso ?? 'Esta ação não pode ser desfeita.'}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel>{rotuloCancelar ?? 'Cancelar'}</AlertDialogCancel>
           <AlertDialogAction className={cn(buttonVariants({ variant: 'destructive' }))} onClick={aoConfirmar}>
             {rotuloConfirmar ?? `Apagar ${a?.tipo}`}
           </AlertDialogAction>
