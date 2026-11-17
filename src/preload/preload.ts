@@ -5,6 +5,8 @@ import type { ApiRequest, EscolaBridge } from '../shared/types.ts';
 const bridge: EscolaBridge = {
   request: (req: ApiRequest) => ipcRenderer.invoke('api:request', req),
   saveFile: (defaultName: string, content: string) => ipcRenderer.invoke('file:save', defaultName, content),
+  exportarBackup: () => ipcRenderer.invoke('backup:exportar'),
+  restaurarBackup: () => ipcRenderer.invoke('backup:restaurar'),
 };
 
 contextBridge.exposeInMainWorld('escola', bridge);

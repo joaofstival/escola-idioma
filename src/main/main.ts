@@ -1,8 +1,8 @@
-// Processo principal do Electron: janela, banco (sql.js), IPC e segurança de navegação.
+// Processo principal do Electron: janela, banco (node:sqlite), IPC e segurança de navegação.
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import { writeFile } from 'node:fs/promises';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { openDb, limparDados } from './db.ts';
@@ -10,18 +10,21 @@ import type { Db } from './db.ts';
 import { createApi } from './app.ts';
 import type { Router } from './router.ts';
 import { seed } from './seed.ts';
-import type { ApiRequest, ApiResponse } from '../shared/types.ts';
+import {
+  concluirRestauracaoPendente, exportarBackup, iniciarBackupAutomatico, prepararRestauracao, validarArquivoDeBackup,
+} from './backup.ts';
+import type { ApiRequest, ApiResponse, ResultadoBackupIpc } from '../shared/types.ts';
 
-// dist/main.js → os demais artefatos estão ao lado (dist/preload.cjs, dist/renderer, dist/sql-wasm.wasm).
+// dist/main.js → os demais artefatos estão ao lado (dist/preload.cjs, dist/renderer).
 const DIST = import.meta.dirname;
 const PRELOAD = join(DIST, 'preload.cjs');
 const INDEX_HTML = join(DIST, 'renderer', 'index.html');
-const WASM = join(DIST, 'sql-wasm.wasm');
 const RENDERER_URL = pathToFileURL(join(DIST, 'renderer')).href;
 
 let db: Db | null = null;
 let api: Router | null = null;
 let janela: BrowserWindow | null = null;
+let pararBackup: (() => void) | null = null;
 
 function ehExterno(url: string): boolean {
   return /^https?:\/\//i.test(url);
@@ -34,15 +37,22 @@ function origemConfiavel(event: IpcMainInvokeEvent): boolean {
 }
 
 async function iniciarBanco(): Promise<void> {
-  const file = join(app.getPath('userData'), 'escola.db');
-  db = await openDb({ file, wasmPath: WASM });
-  if (process.argv.includes('--seed')) {
+  const userData = app.getPath('userData');
+  // Restauração pedida na sessão anterior: troca os arquivos antes de abrir o banco.
+  const restaurou = concluirRestauracaoPendente(userData);
+  db = await openDb({ file: join(userData, 'escola.db') });
+  const forcarSeed = process.argv.includes('--seed');
+  if (forcarSeed) {
     limparDados(db);
     console.log('[seed] dados apagados; recriando dados de exemplo');
   }
-  const r = seed(db);
-  if (r.populado) console.log('[seed] banco populado com dados de exemplo', r.contagem);
+  // Banco restaurado, mesmo vazio, nunca é coberto por dados de exemplo.
+  if (forcarSeed || !restaurou) {
+    const r = seed(db);
+    if (r.populado) console.log('[seed] banco populado com dados de exemplo', r.contagem);
+  }
   api = createApi(db);
+  pararBackup = iniciarBackupAutomatico(db);
 }
 
 function registrarIpc(): void {
@@ -68,6 +78,67 @@ function registrarIpc(): void {
     const dados = ext === 'csv' && !content.startsWith('﻿') ? '﻿' + content : content;
     await writeFile(r.filePath, dados, 'utf8');
     return r.filePath;
+  });
+}
+
+const FILTRO_DB = [{ name: 'Banco da escola (.db)', extensions: ['db'] }, { name: 'Todos os arquivos', extensions: ['*'] }];
+const falha = (err: unknown): ResultadoBackupIpc => ({ ok: false, cancelado: false, erro: err instanceof Error ? err.message : String(err) });
+
+function registrarIpcBackup(): void {
+  ipcMain.handle('backup:exportar', async (event): Promise<ResultadoBackupIpc> => {
+    if (!origemConfiavel(event)) throw new Error('Origem não autorizada');
+    if (!db) return { ok: false, cancelado: false, erro: 'Banco de dados ainda não está pronto' };
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const hoje = new Date().toISOString().slice(0, 10);
+    const opcoes = { defaultPath: join(app.getPath('documents'), `escola-backup-${hoje}.db`), filters: FILTRO_DB };
+    const r = win ? await dialog.showSaveDialog(win, opcoes) : await dialog.showSaveDialog(opcoes);
+    if (r.canceled || !r.filePath) return { ok: false, cancelado: true };
+    try {
+      exportarBackup(db, r.filePath, true); // o diálogo nativo já confirmou a substituição
+      return { ok: true, arquivo: r.filePath };
+    } catch (err) {
+      return falha(err);
+    }
+  });
+
+  ipcMain.handle('backup:restaurar', async (event): Promise<ResultadoBackupIpc> => {
+    if (!origemConfiavel(event)) throw new Error('Origem não autorizada');
+    if (!db) return { ok: false, cancelado: false, erro: 'Banco de dados ainda não está pronto' };
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const opcoes = { title: 'Escolha o backup a restaurar', defaultPath: app.getPath('documents'), properties: ['openFile' as const], filters: FILTRO_DB };
+    const r = win ? await dialog.showOpenDialog(win, opcoes) : await dialog.showOpenDialog(opcoes);
+    if (r.canceled || r.filePaths.length === 0) return { ok: false, cancelado: true };
+    const escolhido = r.filePaths[0];
+    const problema = validarArquivoDeBackup(escolhido);
+    if (problema) return { ok: false, cancelado: false, erro: problema };
+    const msg = {
+      type: 'warning' as const, buttons: ['Restaurar e reiniciar', 'Cancelar'], defaultId: 1, cancelId: 1,
+      title: 'Restaurar backup', message: `Substituir os dados atuais pelos de "${basename(escolhido)}"?`,
+      detail: 'Os dados atuais ficam guardados na pasta do app (escola.db.pre-restauracao-*). O app será reiniciado.',
+    };
+    const c = win ? await dialog.showMessageBox(win, msg) : await dialog.showMessageBox(msg);
+    if (c.response !== 0) return { ok: false, cancelado: true };
+    const userData = app.getPath('userData');
+    try {
+      prepararRestauracao(escolhido, userData);
+    } catch (err) {
+      return falha(err);
+    }
+    // Fecha o banco (checkpoint) antes de responder: se não fechar limpo, não troca nada e avisa.
+    api = null; // pedidos que chegarem agora recebem 503
+    try {
+      pararBackup?.();
+      db?.close();
+      db = null;
+    } catch (err) {
+      rmSync(join(userData, 'escola.db.restaurar'), { force: true });
+      console.error('Falha ao fechar o banco antes de reiniciar', err);
+      app.relaunch();
+      setTimeout(() => app.exit(1), 50);
+      return falha(new Error('Não foi possível fechar o banco com segurança; nada foi restaurado. O app vai reiniciar.'));
+    }
+    setTimeout(() => { app.relaunch(); app.exit(0); }, 50);
+    return { ok: true, arquivo: escolhido };
   });
 }
 
@@ -149,6 +220,7 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
     registrarIpc();
+    registrarIpcBackup();
     criarJanela();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) criarJanela();
@@ -161,6 +233,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('before-quit', () => {
     try {
+      pararBackup?.();
       db?.close();
       db = null;
     } catch (err) {
