@@ -237,13 +237,11 @@ function AbaRematriculas({ params, mudar }: { params: URLSearchParams; mudar: Mu
   const [enviando, setEnviando] = useState<number | null>(null);
   const [sugs, turmas] = q.data ?? [undefined, [] as Turma[]];
 
-  // destino padrão = primeira turma sugerida
-  useEffect(() => {
-    if (sugs) setDestinos((prev) => Object.fromEntries(sugs.map((s) => [s.aluno_id, prev[s.aluno_id] ?? (s.turmas_sugeridas[0] ? String(s.turmas_sugeridas[0].id) : '')])));
-  }, [q.data]); // eslint-disable-line
+  // destino = escolha do usuário ou, por padrão, a primeira turma sugerida
+  const destinoDe = (s: SugestaoRematricula): string => destinos[s.aluno_id] ?? (s.turmas_sugeridas[0] ? String(s.turmas_sugeridas[0].id) : '');
 
   async function rematricular(s: SugestaoRematricula) {
-    const destino = destinos[s.aluno_id];
+    const destino = destinoDe(s);
     if (!destino) { toast.error(`Escolha a turma de destino de ${s.aluno_nome}.`); return; }
     setEnviando(s.aluno_id);
     try {
@@ -303,7 +301,7 @@ function AbaRematriculas({ params, mudar }: { params: URLSearchParams; mudar: Mu
                         <div className="text-xs whitespace-nowrap">{nivel(s.nivel_atual)} <span aria-label="para">→</span> <strong>{nivel(s.nivel_sugerido)}</strong></div>
                       </TableCell>
                       <TableCell>
-                        <Select value={destinos[s.aluno_id] || undefined} onValueChange={(v) => setDestinos((d) => ({ ...d, [s.aluno_id]: v }))} disabled={s.inadimplente || semTurma}>
+                        <Select value={destinoDe(s) || undefined} onValueChange={(v) => setDestinos((d) => ({ ...d, [s.aluno_id]: v }))} disabled={s.inadimplente || semTurma}>
                           <SelectTrigger className="w-72" aria-label={`Turma de destino de ${s.aluno_nome}`}>
                             <SelectValue placeholder={semTurma ? 'Nenhuma turma com vaga' : 'Escolha uma turma'} />
                           </SelectTrigger>
