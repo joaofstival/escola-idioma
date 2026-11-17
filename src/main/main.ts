@@ -124,20 +124,20 @@ function registrarIpcBackup(): void {
     } catch (err) {
       return falha(err);
     }
-    // Fecha o banco (checkpoint) antes de sair; pedidos que chegarem agora recebem 503.
-    api = null;
-    setTimeout(() => {
-      try {
-        pararBackup?.();
-        db?.close();
-        db = null;
-      } catch (err) {
-        console.error('Falha ao fechar o banco antes de reiniciar', err);
-        rmSync(join(userData, 'escola.db.restaurar'), { force: true }); // sem fechar limpo, não troca arquivos
-      }
+    // Fecha o banco (checkpoint) antes de responder: se não fechar limpo, não troca nada e avisa.
+    api = null; // pedidos que chegarem agora recebem 503
+    try {
+      pararBackup?.();
+      db?.close();
+      db = null;
+    } catch (err) {
+      rmSync(join(userData, 'escola.db.restaurar'), { force: true });
+      console.error('Falha ao fechar o banco antes de reiniciar', err);
       app.relaunch();
-      app.exit(0);
-    }, 50);
+      setTimeout(() => app.exit(1), 50);
+      return falha(new Error('Não foi possível fechar o banco com segurança; nada foi restaurado. O app vai reiniciar.'));
+    }
+    setTimeout(() => { app.relaunch(); app.exit(0); }, 50);
     return { ok: true, arquivo: escolhido };
   });
 }

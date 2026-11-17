@@ -32,6 +32,15 @@ function copiarAntes(raw: DatabaseSync, destino: string): void {
   }
 }
 
+/** Recusa banco de versão maior que a do app, sem alterar nada. */
+export function verificarVersao(raw: DatabaseSync, migrations: Migration[] = MIGRATIONS): void {
+  const ultima = migrations[migrations.length - 1].versao;
+  const atual = versaoDoBanco(raw);
+  if (atual > ultima) {
+    throw new Error(`Este banco foi criado por uma versão mais nova do app (versão ${atual}; este app entende até a ${ultima}). Atualize o app; nada foi alterado.`);
+  }
+}
+
 /**
  * Leva o banco até a última versão. `file` (quando há) recebe `<file>.pre-migracao-v<N>` com o estado de
  * antes (N = versão de origem) se já havia dados e há migration pendente.
@@ -40,11 +49,8 @@ export function aplicarMigrations(raw: DatabaseSync, file: string | null, migrat
   migrations.forEach((m, i) => {
     if (m.versao !== i + 1) throw new Error(`Lista de migrations fora de sequência: posição ${i + 1} tem versão ${m.versao}.`);
   });
-  const ultima = migrations[migrations.length - 1].versao;
+  verificarVersao(raw, migrations);
   const atual = versaoDoBanco(raw);
-  if (atual > ultima) {
-    throw new Error(`Este banco foi criado por uma versão mais nova do app (versão ${atual}; este app entende até a ${ultima}). Atualize o app; nada foi alterado.`);
-  }
   const pendentes = migrations.filter((m) => m.versao > atual);
   if (pendentes.length === 0) return;
   // Banco sem versão mas com tabelas (v0): a 001 usa IF NOT EXISTS, então só completa o que falta.

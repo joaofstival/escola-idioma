@@ -246,3 +246,14 @@ test('arquivo inválido é recusado sem tocar no banco atual (lixo, vazio, vers�
     assert.equal(validarArquivoDeBackup(atual), null, 'o banco bom passa na validação');
   });
 });
+
+test('exportar recusa o arquivo do próprio banco (e seus -wal/-shm)', async () => {
+  await comPasta(async (dir) => {
+    const db = await openDb({ file: join(dir, 'escola.db') });
+    for (const n of ['escola.db', 'escola.db-wal', 'escola.db.restaurar']) {
+      assert.throws(() => exportarBackup(db, join(dir, n), true), /próprio banco/, n);
+    }
+    exportarBackup(db, join(dir, 'outro.db'), true);
+    db.close();
+  });
+});

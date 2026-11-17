@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, existsSync, copyFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, copyFileSync, readdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -109,6 +109,7 @@ test('banco de versão futura é recusado sem alteração', async () => {
     await assert.rejects(openDb({ file }), /versão mais nova/);
     // só a cópia da troca de motor é esperada; sem pre-migracao e sem -wal/-shm sobrando
     assert.deepEqual(readdirSync(dir).sort(), ['escola.db', 'escola.db.pre-node-sqlite']);
+    assert.deepEqual([readFileSync(file)[18], readFileSync(file)[19]], [1, 1], 'cabeçalho (modo de journal) não foi alterado');
     const c = new DatabaseSync(file, { readOnly: true });
     assert.equal(Number((c.prepare('PRAGMA user_version').get() as { user_version: number }).user_version), ULTIMA_VERSAO + 5);
     c.close();

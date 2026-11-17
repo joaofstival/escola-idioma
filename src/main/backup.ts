@@ -3,10 +3,11 @@
 // `escola.db.restaurar` com o app aberto; trocar os arquivos no próximo boot, antes de abrir o banco.
 import { DatabaseSync } from 'node:sqlite';
 import {
-  existsSync, mkdirSync, readdirSync, statSync, renameSync, rmSync, copyFileSync, mkdtempSync, constants,
+  existsSync, mkdirSync, readdirSync, statSync, renameSync, rmSync, copyFileSync, mkdtempSync, realpathSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
+import { copiarSemSobrescrever, renomearDuravel } from './arquivos.ts';
 import type { Db } from './db.ts';
 import { TABELAS } from './db.ts';
 import { ULTIMA_VERSAO } from './migrations/index.ts';
@@ -34,7 +35,7 @@ function copiarConsistente(db: Db, destino: string, sobrescrever: boolean): void
   try {
     db.raw.prepare('VACUUM INTO ?').run(tmp);
     if (!sobrescrever && existsSync(destino)) throw new Error(`O arquivo já existe: ${basename(destino)}`);
-    renameSync(tmp, destino);
+    renomearDuravel(tmp, destino);
   } catch (err) {
     rmSync(tmp, { force: true });
     throw err;
@@ -107,6 +108,14 @@ export function iniciarBackupAutomatico(db: Db, opts: { agora?: () => Date; inte
 
 /** Exporta uma cópia consistente para onde o usuário escolheu. `sobrescrever`: o diálogo nativo já confirmou. */
 export function exportarBackup(db: Db, destino: string, sobrescrever = false): void {
+  if (db.file) {
+    // Nunca por cima do banco vivo (nem -wal/-shm/.restaurar): a conexão aberta ficaria num arquivo desvinculado.
+    const dirDestino = realpathSync(dirname(destino));
+    const dirBanco = realpathSync(dirname(db.file));
+    if (dirDestino === dirBanco && basename(destino).startsWith(basename(db.file))) {
+      throw new Error('Escolha outro local: este é o arquivo do próprio banco da escola');
+    }
+  }
   copiarConsistente(db, destino, sobrescrever);
 }
 
@@ -165,7 +174,10 @@ export function prepararRestauracao(origem: string, userData: string): void {
     } finally {
       d.close();
     }
-    renameSync(tmp, destino);
+    // O que vai ser trocado é o que foi gerado agora: valida o próprio .restaurar (o original pode ter mudado).
+    const erroFinal = validarArquivoDeBackup(tmp);
+    if (erroFinal) throw new Error(erroFinal);
+    renomearDuravel(tmp, destino);
   } catch (err) {
     rmSync(tmp, { force: true });
     throw err;
@@ -203,7 +215,7 @@ export function concluirRestauracaoPendente(userData: string, agora: Date = new 
       try { d.exec('PRAGMA wal_checkpoint(TRUNCATE)'); checkpointOk = true; } finally { d.close(); }
     } catch { /* banco atual ilegível: guarda os arquivos como estão, abaixo */ }
     checkpointOk = checkpointOk && sufixos.every((s) => !existsSync(atual + s));
-    copyFileSync(atual, guardado, constants.COPYFILE_EXCL);
+    copiarSemSobrescrever(atual, guardado);
     if (!checkpointOk) {
       // Sem checkpoint limpo o -wal pode ter dados que só existem lá: guarda junto, ao lado da cópia.
       for (const s of sufixos) if (existsSync(atual + s)) copyFileSync(atual + s, guardado + s);
@@ -211,6 +223,6 @@ export function concluirRestauracaoPendente(userData: string, agora: Date = new 
   }
   // Se caiu entre os renames: sem escola.db, só o .restaurar. Conclui a troca (nunca cria banco vazio).
   for (const s of sufixos) rmSync(atual + s, { force: true });
-  renameSync(novo, atual);
+  renomearDuravel(novo, atual);
   return true;
 }

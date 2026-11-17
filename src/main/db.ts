@@ -2,9 +2,10 @@
 // Sem `file` o banco fica só em memória (usado nos testes).
 import { DatabaseSync } from 'node:sqlite';
 import type { StatementSync } from 'node:sqlite';
-import { existsSync, mkdirSync, copyFileSync, openSync, readSync, closeSync, constants } from 'node:fs';
+import { existsSync, mkdirSync, openSync, readSync, closeSync } from 'node:fs';
+import { copiarSemSobrescrever } from './arquivos.ts';
 import { dirname } from 'node:path';
-import { aplicarMigrations } from './migrations/index.ts';
+import { aplicarMigrations, verificarVersao } from './migrations/index.ts';
 import type { Migration } from './migrations/index.ts';
 
 /** Valores aceitos como parâmetro: booleanos viram 0/1 e undefined vira NULL. */
@@ -89,7 +90,7 @@ function copiarAntesDaTrocaDeMotor(file: string): void {
     closeSync(fd);
   }
   if (cab.subarray(0, 15).toString('latin1') !== 'SQLite format 3' || cab[18] !== 1 || cab[19] !== 1) return;
-  copyFileSync(file, copia, constants.COPYFILE_EXCL);
+  copiarSemSobrescrever(file, copia);
 }
 
 export interface OpenDbOptions { file?: string; /** Só para testes: lista alternativa de migrations. */ migrations?: Migration[] }
@@ -104,6 +105,12 @@ export async function openDb(opts: OpenDbOptions = {}): Promise<Db> {
   const raw = new DatabaseSync(file ?? ':memory:');
   raw.function('sem_acento', { deterministic: true }, (v) => semAcento(v));
   raw.exec('PRAGMA busy_timeout = 5000;');
+  try {
+    verificarVersao(raw, opts.migrations); // versão futura é recusada antes de qualquer mudança no arquivo
+  } catch (err) {
+    raw.close();
+    throw err;
+  }
   if (file) raw.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
   raw.exec('PRAGMA foreign_keys = ON;');
   try {
@@ -154,7 +161,9 @@ export async function openDb(opts: OpenDbOptions = {}): Promise<Db> {
         return r;
       } catch (err) {
         profundidade--;
-        raw.exec(profundidade === 0 ? 'ROLLBACK' : `ROLLBACK TO ${nome}; RELEASE ${nome}`);
+        try {
+          raw.exec(profundidade === 0 ? 'ROLLBACK' : `ROLLBACK TO ${nome}; RELEASE ${nome}`);
+        } catch { /* o SQLite já desfez sozinho (ex.: disco cheio): mantém o erro original */ }
         throw err;
       }
     },
