@@ -1,9 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readdirSync, copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { openDb, limparDados, TABELAS } from './db.ts';
+
+const FIXTURE_V1 = fileURLToPath(new URL('./fixtures/escola-v1-antigo.db', import.meta.url));
+
+/** Pasta temporária para um teste; remove ao final. */
+async function comPasta(fn: (dir: string) => Promise<void>): Promise<void> {
+  const dir = mkdtempSync(join(tmpdir(), 'escola-db-'));
+  try { await fn(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+}
 
 test('cria todas as tabelas do schema com foreign keys ligadas', async () => {
   const db = await openDb();
@@ -91,4 +100,99 @@ test('persiste em arquivo (gravar, reabrir, ler) de forma atômica', async () =>
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('arquivo em disco usa WAL, synchronous NORMAL e grava sem persist()', async () => {
+  await comPasta(async (dir) => {
+    const file = join(dir, 'escola.db');
+    const db = await openDb({ file });
+    assert.equal(db.get<{ journal_mode: string }>('PRAGMA journal_mode')!.journal_mode, 'wal');
+    assert.equal(db.get<{ synchronous: number }>('PRAGMA synchronous')!.synchronous, 1);
+    assert.equal(db.get<{ timeout: number }>('PRAGMA busy_timeout')!.timeout > 0, true);
+    db.run("INSERT INTO idiomas (nome, codigo, mensalidade) VALUES ('Alemão', 'de', 310)");
+    assert.equal('persist' in db, false, 'persist foi removido da interface');
+    // reabre sem close(): o confirmado precisa estar visível (WAL)
+    const db2 = await openDb({ file });
+    assert.equal(db2.get<{ n: number }>('SELECT count(*) AS n FROM idiomas')!.n, 1);
+    db.close(); db2.close();
+    assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith('-wal') || f.endsWith('-shm')), [], 'close() faz checkpoint e remove -wal/-shm');
+  });
+});
+
+test('SAVEPOINT aninhado com rollback em arquivo WAL', async () => {
+  await comPasta(async (dir) => {
+    const db = await openDb({ file: join(dir, 'escola.db') });
+    db.transaction(() => {
+      db.run("INSERT INTO alunos (nome) VALUES ('B')");
+      try {
+        db.transaction(() => { db.run("INSERT INTO alunos (nome) VALUES ('C')"); throw new Error('interna'); });
+      } catch { /* só a interna é desfeita */ }
+    });
+    const db2 = await openDb({ file: join(dir, 'escola.db') });
+    assert.deepEqual(db2.all<{ nome: string }>('SELECT nome FROM alunos').map((r) => r.nome), ['B']);
+    db.close(); db2.close();
+  });
+});
+
+test('linhas têm protótipo comum (deepEqual estrito) e inteiros vêm como number', async () => {
+  const db = await openDb();
+  db.run("INSERT INTO alunos (nome) VALUES ('A')");
+  const linha = db.get<{ id: number }>('SELECT id FROM alunos')!;
+  assert.equal(Object.getPrototypeOf(linha), Object.prototype);
+  assert.equal(typeof linha.id, 'number');
+  assert.deepEqual(db.all('SELECT id FROM alunos'), [{ id: 1 }]);
+});
+
+test('parâmetro nomeado a mais é ignorado e string com aspas duplas é recusada', async () => {
+  const db = await openDb();
+  assert.equal(db.get<{ a: number }>('SELECT :a AS a', { a: 1, sobrando: 2 })!.a, 1);
+  assert.equal(db.get<{ a: number }>('SELECT :a AS a', { ':a': 3 })!.a, 3);
+  assert.throws(() => db.all('SELECT "texto" AS t FROM alunos'), /no such column/);
+});
+
+test('arquivo do motor antigo (journal 01 01) é copiado para .pre-node-sqlite antes da 1ª abertura, sem sobrescrever', async () => {
+  await comPasta(async (dir) => {
+    const file = join(dir, 'escola.db');
+    copyFileSync(FIXTURE_V1, file);
+    const original = readFileSync(file);
+    assert.deepEqual([original[18], original[19]], [1, 1]);
+    const db = await openDb({ file });
+    const copia = `${file}.pre-node-sqlite`;
+    assert.ok(existsSync(copia), 'cópia criada');
+    assert.ok(readFileSync(copia).equals(original), 'cópia idêntica ao arquivo do motor antigo');
+    assert.equal(db.get<{ n: number }>('SELECT count(*) AS n FROM alunos')!.n, 25);
+    db.run("INSERT INTO alunos (nome) VALUES ('Novo')");
+    db.close();
+    // segunda abertura: arquivo já está em WAL; a cópia original permanece intacta
+    const db2 = await openDb({ file });
+    db2.close();
+    assert.ok(readFileSync(copia).equals(original), 'cópia não foi sobrescrita');
+  });
+});
+
+test('banco novo e arquivo vazio não geram .pre-node-sqlite', async () => {
+  await comPasta(async (dir) => {
+    const novo = join(dir, 'novo.db');
+    (await openDb({ file: novo })).close();
+    assert.equal(existsSync(`${novo}.pre-node-sqlite`), false);
+    const vazio = join(dir, 'vazio.db');
+    writeFileSync(vazio, '');
+    (await openDb({ file: vazio })).close();
+    assert.equal(existsSync(`${vazio}.pre-node-sqlite`), false);
+  });
+});
+
+test('rollback real: checkpoint + journal_mode=DELETE devolve arquivo legível pelo motor antigo (cabeçalho 01 01)', async () => {
+  await comPasta(async (dir) => {
+    const file = join(dir, 'escola.db');
+    copyFileSync(FIXTURE_V1, file);
+    const db = await openDb({ file });
+    db.run("INSERT INTO alunos (nome) VALUES ('Novo')");
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    db.exec('PRAGMA journal_mode = DELETE');
+    db.close();
+    const bytes = readFileSync(file);
+    assert.deepEqual([bytes[18], bytes[19]], [1, 1]);
+    assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith('-wal') || f.endsWith('-shm')), []);
+  });
 });
