@@ -12,6 +12,8 @@ export interface AlvoApagar {
   tipo: string;
   /** Aviso extra (efeitos colaterais). */
   aviso?: string;
+  /** Verbo do título, padrão "Apagar" (ex.: "Estornar"). */
+  verbo?: string;
 }
 
 /** Confirmação de ação destrutiva citando o nome do item. `alvo` nulo = fechado. */
@@ -23,7 +25,7 @@ export function ConfirmarApagar({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Apagar {alvo?.tipo} “{alvo?.nome}”?
+            {alvo?.verbo ?? 'Apagar'} {alvo?.tipo} “{alvo?.nome}”?
           </AlertDialogTitle>
           <AlertDialogDescription>{alvo?.aviso ?? 'Esta ação não pode ser desfeita.'}</AlertDialogDescription>
         </AlertDialogHeader>
