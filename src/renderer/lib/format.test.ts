@@ -1,0 +1,35 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { brl, cefr, data, nivel, ou, competencia } from './format.ts';
+
+test('data converte aaaa-mm-dd sem deslocar por fuso e usa "—" para vazio', () => {
+  assert.equal(data('2026-11-16'), '16/11/2026');
+  assert.equal(data(null), '—');
+  assert.equal(data('lixo'), '—');
+});
+
+test('brl formata em reais e nunca mostra NaN/null', () => {
+  assert.equal(brl(1234.5).replace(/\s/g, ' '), 'R$ 1.234,50');
+  assert.equal(brl(null), '—');
+  assert.equal(brl(Number.NaN), '—');
+});
+
+test('ou troca vazio por "—"', () => {
+  assert.equal(ou(''), '—');
+  assert.equal(ou('  '), '—');
+  assert.equal(ou(null), '—');
+  assert.equal(ou(0), '0');
+});
+
+test('nível numérico mapeia para a faixa QECR', () => {
+  assert.equal(cefr(1), 'A1');
+  assert.equal(cefr(2), 'A1');
+  assert.equal(cefr(3), 'A2');
+  assert.equal(cefr(12), 'C2');
+  assert.equal(nivel(3), 'Nível 3 (A2)');
+});
+
+test('competência aaaa-mm vira mm/aaaa', () => {
+  assert.equal(competencia('2026-03'), '03/2026');
+  assert.equal(competencia(undefined), '—');
+});
