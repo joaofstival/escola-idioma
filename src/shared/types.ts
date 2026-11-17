@@ -20,7 +20,19 @@ export interface EscolaBridge {
   request<T = unknown>(req: ApiRequest): Promise<ApiResponse<T>>;
   /** Abre diálogo "Salvar como" e grava o conteúdo. Retorna o caminho ou null se cancelado. */
   saveFile(defaultName: string, content: string): Promise<string | null>;
+  /** Backup: "Salvar como" nativo e cópia consistente do banco. */
+  exportarBackup(): Promise<ResultadoBackupIpc>;
+  /** Backup: escolhe um arquivo .db, valida, pede confirmação nativa e reabre o app com os dados restaurados. */
+  restaurarBackup(): Promise<ResultadoBackupIpc>;
 }
+
+/** Backup guardado em userData/backups (GET/POST /backups). `tipo`: automático diário ou manual. */
+export interface BackupInfo { nome: string; tamanho: number; criadoEm: string; tipo: 'auto' | 'manual' }
+
+/** Resultado de exportarBackup/restaurarBackup. `cancelado` = o usuário fechou o diálogo (não é erro). */
+export type ResultadoBackupIpc =
+  | { ok: true; arquivo: string }
+  | { ok: false; cancelado: boolean; erro?: string };
 
 // ---------- Entidades ----------
 export interface Idioma { id: number; nome: string; codigo: string; mensalidade: number }
