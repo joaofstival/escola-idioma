@@ -58,7 +58,7 @@ export function AvaliacaoDetalhe() {
         <EstadoErro erro={q.error} aoRecarregar={q.reload} titulo="Não foi possível carregar a avaliação." />
       </>
     );
-  if (!q.data || !turmas.data)
+  if (!q.data || q.data.id !== Number(id) || !turmas.data)
     return (
       <>
         <PageHeader title="Avaliação" />
@@ -104,7 +104,7 @@ export function AvaliacaoDetalhe() {
           <Previa form={a.form} />
         </TabsContent>
         <TabsContent value="responder" className="mt-6">
-          <AvaliacaoResponder avaliacao={a} aoResponder={recarregar} />
+          <AvaliacaoResponder key={a.id} avaliacao={a} aoResponder={recarregar} />
         </TabsContent>
         <TabsContent value="resultados" className="mt-6">
           <AvaliacaoResultados avaliacaoId={a.id} versao={versao} />

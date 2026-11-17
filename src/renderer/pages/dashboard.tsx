@@ -20,6 +20,7 @@ function Linha({ rotulo, valor, para, destaque }: { rotulo: string; valor: strin
 export default function Painel() {
   const q = useQuery(() => api.get<Dashboard>('/dashboard'), []);
   const d = q.data;
+  const mesNum = String(new Date().getMonth() + 1).padStart(2, '0');
   const mes = new Date().toLocaleDateString('pt-BR', { month: 'long' });
   return (
     <>
@@ -38,8 +39,12 @@ export default function Painel() {
               Financeiro de {mes}
             </h2>
             <dl className="divide-y rounded-xl border p-1">
-              <Linha rotulo="Recebido no mês" valor={brl(d.receita_mes)} para="/financeiro" />
-              <Linha rotulo="A receber no mês" valor={brl(d.a_receber_mes)} para="/financeiro?status=pendente" />
+              <Linha rotulo="Recebido no mês" valor={brl(d.receita_mes)} para={`/financeiro?ano=${d.ano}&mes=${mesNum}&status=paga`} />
+              <Linha
+                rotulo="A receber no mês"
+                valor={brl(d.a_receber_mes)}
+                para={`/financeiro?ano=${d.ano}&mes=${mesNum}&status=pendente`}
+              />
               <Linha
                 rotulo="Alunos inadimplentes"
                 valor={String(d.inadimplentes)}

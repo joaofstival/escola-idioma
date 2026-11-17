@@ -14,12 +14,12 @@ export type Rotas = Record<string, Resposta | Resposta[]>;
 
 /** Instala window.escola com rotas "MÉTODO /caminho" (sem query). Lista de respostas = uma por chamada (a última se repete). */
 export function instalarEscola(rotas: Rotas) {
-  const chamadas: { metodo: string; caminho: string; corpo: unknown }[] = [];
+  const chamadas: { metodo: string; caminho: string; consulta: string; corpo: unknown }[] = [];
   const contagem = new Map<string, number>();
   const request = vi.fn(async ({ method, path, body }: { method: string; path: string; body?: unknown }): Promise<ApiResponse<unknown>> => {
     const caminho = path.split('?')[0];
     const chave = `${method} ${caminho}`;
-    chamadas.push({ metodo: method, caminho, corpo: body });
+    chamadas.push({ metodo: method, caminho, consulta: path.split('?')[1] ?? '', corpo: body });
     let r = rotas[chave];
     if (Array.isArray(r)) {
       const n = contagem.get(chave) ?? 0;

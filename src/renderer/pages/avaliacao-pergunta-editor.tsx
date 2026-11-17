@@ -24,7 +24,14 @@ function Check({ rotulo, marcado, aoMudar, dica }: { rotulo: string; marcado: bo
 
 function Opcoes({ q, aoMudar, rotulo, comPontos }: { q: Question; aoMudar: (q: Question) => void; rotulo: string; comPontos: boolean }) {
   const ops = q.options ?? [];
-  const set = (options: QuestionOption[]) => aoMudar({ ...q, options });
+  const set = (options: QuestionOption[]) => {
+    // opções removidas não podem continuar citadas nas regras da pergunta (o servidor recusaria)
+    const ids = new Set(options.map((o) => o.id));
+    const ajuste: Partial<Question> = {};
+    if (q.reasonOn) ajuste.reasonOn = q.reasonOn.filter((id) => ids.has(id));
+    if (q.maxChoices && q.maxChoices > options.length) ajuste.maxChoices = options.length;
+    aoMudar({ ...q, ...ajuste, options });
+  };
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">

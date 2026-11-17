@@ -77,4 +77,17 @@ describe('mensalidades', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(await screen.findByText('Ana Atrasada')).toBeInTheDocument();
   });
+
+  test('"Todos os anos" busca mensalidades de todos os anos (não volta ao ano do resumo)', async () => {
+    const api = instalarEscola(rotas());
+    renderizar(<Financeiro />, '/financeiro?ano=2026');
+    await screen.findByText('Ana Atrasada');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Ano' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Todos os anos' }));
+    await waitFor(() => {
+      const gets = api.de('GET', '/mensalidades');
+      expect(gets.length).toBeGreaterThan(1);
+      expect(gets[gets.length - 1].consulta).not.toMatch(/ano=|competencia=/);
+    });
+  });
 });

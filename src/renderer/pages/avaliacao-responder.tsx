@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { EstadoVazio } from '@/components/estados';
+import { EstadoErro, EstadoVazio } from '@/components/estados';
 import { FiltroSelect } from '@/components/filtro-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -50,6 +50,19 @@ export function AvaliacaoResponder({ avaliacao, aoResponder }: { avaliacao: Aval
     }
   }
 
+  const erroCarga = turma.error ?? respondidas.error;
+  if (erroCarga) {
+    return (
+      <EstadoErro
+        erro={erroCarga}
+        aoRecarregar={() => {
+          turma.reload();
+          respondidas.reload();
+        }}
+        titulo="Não foi possível carregar os alunos desta turma."
+      />
+    );
+  }
   if (turma.data && pendentes.length === 0) {
     return (
       <EstadoVazio

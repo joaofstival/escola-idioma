@@ -9,11 +9,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { api, mensagemErro } from '@/lib/api';
 import { brl, competencia, data } from '@/lib/format';
-import { FORMAS_PAGAMENTO, diasTxt, encargosEm, hojeLocal } from '@/lib/financeiro';
+import { FORMAS_PAGAMENTO, lerValor, diasTxt, encargosEm, hojeLocal } from '@/lib/financeiro';
 import { cn } from '@/lib/utils';
 import type { Mensalidade } from '../../shared/types.ts';
 
-const numero = (s: string) => Number(s.replace(',', '.'));
+const numero = lerValor;
 
 function esquema(hoje: string) {
   return z.object({

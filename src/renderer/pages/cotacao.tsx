@@ -80,6 +80,11 @@ export default function Cotacao() {
           </p>
         )}
 
+        {q.error && q.data && (
+          <p role="alert" className="rounded-xl border border-danger-deep/30 bg-danger-soft p-4 text-danger-deep">
+            Não foi possível atualizar as cotações agora ({q.error.message}). Os valores abaixo são da última consulta.
+          </p>
+        )}
         {q.error && !q.data ? (
           <EstadoErro erro={q.error} aoRecarregar={q.reload} titulo="Não foi possível carregar as cotações." />
         ) : (

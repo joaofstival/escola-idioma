@@ -25,6 +25,14 @@ const ROTULO_FORMA: Record<string, string> = {
 };
 export const rotuloForma = (f: string | null | undefined): string => (f ? (ROTULO_FORMA[f] ?? f) : '—');
 
+/** Lê o valor digitado em pt-BR: "1.250,50" e "1.250" valem 1250,50 e 1250; "309.00" e "309,5" são decimais. Inválido = NaN. */
+export function lerValor(texto: string): number {
+  const t = texto.trim().replace(/\s/g, '');
+  if (t.includes(',')) return /^\d{1,3}(\.\d{3})*,\d+$|^\d+,\d+$/.test(t) ? Number(t.replace(/\./g, '').replace(',', '.')) : NaN;
+  if (/^\d{1,3}(\.\d{3})+$/.test(t)) return Number(t.replace(/\./g, ''));
+  return /^\d+(\.\d+)?$/.test(t) ? Number(t) : NaN;
+}
+
 export const arredondar = (v: number): number => Math.round((v + Number.EPSILON) * 100) / 100;
 
 export function diasEntre(de: string, ate: string): number {

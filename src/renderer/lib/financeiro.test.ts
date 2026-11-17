@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { encargosEm, escalaEixo, gerarCsv, hojeLocal, statusExibido } from './financeiro.ts';
+import { encargosEm, lerValor, escalaEixo, gerarCsv, hojeLocal, statusExibido } from './financeiro.ts';
 import type { Mensalidade } from '../../shared/types.ts';
 
 const base: Mensalidade = {
@@ -58,4 +58,15 @@ test('escalaEixo: topo redondo cobre o máximo', () => {
 
 test('hojeLocal usa a data local, não UTC', () => {
   assert.equal(hojeLocal(new Date(2026, 10, 17, 23, 59)), '2026-11-17');
+});
+
+test('lerValor entende pt-BR (milhar com ponto, vírgula decimal) e recusa lixo', () => {
+  assert.equal(lerValor('1.250,50'), 1250.5);
+  assert.equal(lerValor('1.250'), 1250);
+  assert.equal(lerValor('309.00'), 309);
+  assert.equal(lerValor('309,5'), 309.5);
+  assert.equal(lerValor('0'), 0);
+  assert.ok(Number.isNaN(lerValor('12,3,4')));
+  assert.ok(Number.isNaN(lerValor('abc')));
+  assert.ok(Number.isNaN(lerValor('')));
 });

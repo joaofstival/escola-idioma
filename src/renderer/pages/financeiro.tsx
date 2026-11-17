@@ -48,7 +48,8 @@ export default function Financeiro() {
 
   const status = STATUS.some((s) => s.valor === params.get('status')) ? params.get('status')! : 'todas';
   const aluno = /^\d+$/.test(params.get('aluno_id') ?? '') ? params.get('aluno_id')! : 'todos';
-  const ano = params.get('ano') ?? String(anoResumo);
+  const anoUrl = params.get('ano') ?? '';
+  const ano = anoUrl === 'todos' || /^\d{4}$/.test(anoUrl) ? anoUrl : String(anoResumo);
   const mes = ano === 'todos' ? 'todos' : /^(0[1-9]|1[0-2])$/.test(params.get('mes') ?? '') ? params.get('mes')! : 'todos';
   const aba = params.get('aba') === 'inadimplentes' ? 'inadimplentes' : 'mensalidades';
 
@@ -59,7 +60,7 @@ export default function Financeiro() {
         v === null ||
         v === '' ||
         v === 'todas' ||
-        v === 'todos' ||
+        (v === 'todos' && k !== 'ano') || // "Todos os anos" precisa ficar na URL: sem ela o padrão é o ano do resumo
         (k === 'ano' && v === String(anoResumo)) ||
         (k === 'aba' && v === 'mensalidades')
       )
@@ -160,7 +161,12 @@ export default function Financeiro() {
               <TabsTrigger value="inadimplentes">Inadimplentes{inad.data?.length ? ` (${inad.data.length})` : ''}</TabsTrigger>
             </TabsList>
             {aba === 'mensalidades' && (
-              <Button variant="outline" onClick={exportar} disabled={!itens.length} title="Exporta a tabela com os filtros atuais">
+              <Button
+                variant="outline"
+                onClick={exportar}
+                disabled={!itens.length || lista.loading}
+                title="Exporta a tabela com os filtros atuais"
+              >
                 <Download aria-hidden="true" />
                 Exportar CSV
               </Button>
