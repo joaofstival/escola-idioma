@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -16,21 +17,25 @@ export interface AlvoApagar {
 
 /** Confirmação de ação destrutiva citando o nome do item. `alvo` nulo = fechado. */
 export function ConfirmarApagar({
-  alvo, aoCancelar, aoConfirmar, rotuloConfirmar,
-}: { alvo: AlvoApagar | null; aoCancelar: () => void; aoConfirmar: () => void; rotuloConfirmar?: string }) {
+  alvo, aoCancelar, aoConfirmar, rotuloConfirmar, titulo,
+}: { alvo: AlvoApagar | null; aoCancelar: () => void; aoConfirmar: () => void; rotuloConfirmar?: string; titulo?: (a: AlvoApagar) => string }) {
+  // mantém o último alvo durante a animação de fechar (evita texto vazio piscando)
+  const ultimo = useRef<AlvoApagar | null>(null);
+  if (alvo) ultimo.current = alvo;
+  const a = alvo ?? ultimo.current;
   return (
     <AlertDialog open={alvo !== null} onOpenChange={(aberto) => !aberto && aoCancelar()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Apagar {alvo?.tipo} “{alvo?.nome}”?
+            {a ? (titulo ? titulo(a) : `Apagar ${a.tipo} “${a.nome}”?`) : ''}
           </AlertDialogTitle>
-          <AlertDialogDescription>{alvo?.aviso ?? 'Esta ação não pode ser desfeita.'}</AlertDialogDescription>
+          <AlertDialogDescription>{a?.aviso ?? 'Esta ação não pode ser desfeita.'}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction className={cn(buttonVariants({ variant: 'destructive' }))} onClick={aoConfirmar}>
-            {rotuloConfirmar ?? `Apagar ${alvo?.tipo}`}
+            {rotuloConfirmar ?? `Apagar ${a?.tipo}`}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

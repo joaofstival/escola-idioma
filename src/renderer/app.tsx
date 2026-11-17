@@ -2,13 +2,13 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from '@/components/shell';
 import { Toaster } from '@/components/ui/sonner';
 import EmMigracao from '@/pages/em-migracao';
+import Alunos from '@/pages/alunos';
+import Idiomas from '@/pages/idiomas';
+import Professores from '@/pages/professores';
 
 /** Telas ainda não portadas (plano 03). Cada tela portada troca seu item por uma rota própria. */
 const EM_MIGRACAO: Record<string, string> = {
   dashboard: 'Painel',
-  alunos: 'Alunos',
-  professores: 'Professores',
-  idiomas: 'Idiomas e valores',
   turmas: 'Turmas',
   matriculas: 'Matrículas',
   materiais: 'Materiais didáticos',
@@ -24,6 +24,9 @@ export default function App() {
       <Routes>
         <Route element={<Shell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="alunos/:id?" element={<Alunos />} />
+          <Route path="idiomas" element={<Idiomas />} />
+          <Route path="professores" element={<Professores />} />
           {Object.entries(EM_MIGRACAO).map(([rota, titulo]) => (
             <Route key={rota} path={`${rota}/*`} element={<EmMigracao titulo={titulo} />} />
           ))}
