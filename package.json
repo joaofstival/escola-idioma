@@ -12,12 +12,8 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "seed": "npm run build && electron . --seed"
   },
-  "dependencies": {
-    "sql.js": "1.16.0"
-  },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "@types/sql.js": "1.4.11",
     "electron": "45.3.3",
     "esbuild": "0.28.2",
     "typescript": "7.0.2"

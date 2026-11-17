@@ -1,4 +1,4 @@
-// Processo principal do Electron: janela, banco (sql.js), IPC e segurança de navegação.
+// Processo principal do Electron: janela, banco (node:sqlite), IPC e segurança de navegação.
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import { writeFile } from 'node:fs/promises';
@@ -12,11 +12,10 @@ import type { Router } from './router.ts';
 import { seed } from './seed.ts';
 import type { ApiRequest, ApiResponse } from '../shared/types.ts';
 
-// dist/main.js → os demais artefatos estão ao lado (dist/preload.cjs, dist/renderer, dist/sql-wasm.wasm).
+// dist/main.js → os demais artefatos estão ao lado (dist/preload.cjs, dist/renderer).
 const DIST = import.meta.dirname;
 const PRELOAD = join(DIST, 'preload.cjs');
 const INDEX_HTML = join(DIST, 'renderer', 'index.html');
-const WASM = join(DIST, 'sql-wasm.wasm');
 const RENDERER_URL = pathToFileURL(join(DIST, 'renderer')).href;
 
 let db: Db | null = null;
@@ -35,7 +34,7 @@ function origemConfiavel(event: IpcMainInvokeEvent): boolean {
 
 async function iniciarBanco(): Promise<void> {
   const file = join(app.getPath('userData'), 'escola.db');
-  db = await openDb({ file, wasmPath: WASM });
+  db = await openDb({ file });
   if (process.argv.includes('--seed')) {
     limparDados(db);
     console.log('[seed] dados apagados; recriando dados de exemplo');

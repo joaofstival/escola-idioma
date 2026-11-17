@@ -1,8 +1,8 @@
-// Banco de dados: SQLite em WASM (sql.js), persistido em arquivo de forma atômica.
+// Banco de dados: SQLite nativo do Node (node:sqlite), em arquivo com WAL (cada escrita já vai para o disco).
 // Sem `file` o banco fica só em memória (usado nos testes).
-import initSqlJs from 'sql.js';
-import type { Database, SqlJsStatic, SqlValue } from 'sql.js';
-import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, rmSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
+import type { StatementSync } from 'node:sqlite';
+import { existsSync, mkdirSync, copyFileSync, openSync, readSync, closeSync, constants } from 'node:fs';
 import { dirname } from 'node:path';
 
 /** Valores aceitos como parâmetro: booleanos viram 0/1 e undefined vira NULL. */
@@ -16,20 +16,18 @@ export interface Db {
   all<T = Record<string, unknown>>(sql: string, params?: Params): T[];
   /** Primeira linha ou undefined. */
   get<T = Record<string, unknown>>(sql: string, params?: Params): T | undefined;
-  /** Executa um comando de escrita e persiste em disco (exceto dentro de transaction). */
+  /** Executa um comando de escrita (grava direto no arquivo). */
   run(sql: string, params?: Params): RunResult;
   /** Executa vários comandos SQL sem parâmetros (DDL, scripts). */
   exec(sql: string): void;
-  /** Executa fn numa transação (aninhável via SAVEPOINT). Persiste ao final da transação externa. */
+  /** Executa fn numa transação (aninhável via SAVEPOINT). */
   transaction<T>(fn: () => T): T;
-  /** Grava o banco em disco (temporário + rename). Não faz nada em bancos em memória. */
-  persist(): void;
-  /** Fecha o banco (persistindo antes). */
+  /** Faz checkpoint do WAL e fecha o banco. */
   close(): void;
   /** Caminho do arquivo ou null quando em memória. */
   readonly file: string | null;
-  /** Acesso ao objeto sql.js (uso avançado). */
-  readonly raw: Database;
+  /** Acesso ao DatabaseSync do node:sqlite (uso avançado). */
+  readonly raw: DatabaseSync;
 }
 
 /** Colunas INTEGER 0/1 que são devolvidas como boolean. Partes futuras podem acrescentar nomes. */
@@ -176,86 +174,85 @@ export const TABELAS = [
   'mensalidades', 'avaliacoes', 'avaliacao_respostas', 'avaliacao_resposta_itens',
 ] as const;
 
-const sqlCache = new Map<string, Promise<SqlJsStatic>>();
-function carregarSql(wasmPath?: string): Promise<SqlJsStatic> {
-  const chave = wasmPath ?? '';
-  let p = sqlCache.get(chave);
-  if (!p) {
-    p = initSqlJs(wasmPath ? { locateFile: () => wasmPath } : undefined);
-    sqlCache.set(chave, p);
-  }
-  return p;
-}
-
 /** Remove acentos e passa para minúsculas: usada nas buscas (função SQL `sem_acento`). */
 export function semAcento(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   return String(v).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
-function converterParams(params?: Params): SqlValue[] | Record<string, SqlValue> | undefined {
-  if (params === undefined) return undefined;
-  const conv = (v: Param): SqlValue => (v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v);
-  if (Array.isArray(params)) return params.map(conv);
-  const out: Record<string, SqlValue> = {};
-  for (const [k, v] of Object.entries(params)) out[/^[:@$]/.test(k) ? k : ':' + k] = conv(v);
+type Bindable = string | number | bigint | null | Uint8Array;
+
+function converterValor(v: Param): Bindable {
+  return v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v;
+}
+
+/** Posicionais viram lista; nomeados viram objeto (o node:sqlite aceita a chave com ou sem prefixo). */
+function converterParams(params?: Params): Bindable[] | [Record<string, Bindable>] {
+  if (params === undefined) return [];
+  if (Array.isArray(params)) return params.map(converterValor);
+  const out: Record<string, Bindable> = {};
+  for (const [k, v] of Object.entries(params)) out[k] = converterValor(v);
+  return [out];
+}
+
+/** O node:sqlite devolve objetos sem protótipo; copiamos para um objeto comum e convertemos os booleanos. */
+function converterLinha(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...row };
+  for (const k of Object.keys(out)) {
+    if (BOOL_COLUMNS.has(k) && (out[k] === 0 || out[k] === 1)) out[k] = out[k] === 1;
+  }
   return out;
 }
 
-function converterLinha(row: Record<string, SqlValue>): Record<string, unknown> {
-  for (const k of Object.keys(row)) {
-    if (BOOL_COLUMNS.has(k) && (row[k] === 0 || row[k] === 1)) (row as Record<string, unknown>)[k] = row[k] === 1;
-  }
-  return row;
-}
+/** Sufixo da cópia feita antes da primeira abertura de um arquivo gravado pelo motor antigo (SQLite em WASM). */
+export const SUFIXO_PRE_NODE_SQLITE = '.pre-node-sqlite';
 
-/** Grava bytes de forma atômica: escreve num temporário ao lado e renomeia por cima. */
-function gravarAtomico(file: string, data: Uint8Array): void {
-  mkdirSync(dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+/**
+ * Arquivos do motor antigo ficam em modo "rollback journal" (bytes 18-19 do cabeçalho = 01 01); depois da
+ * primeira abertura aqui viram WAL (02 02). Copia o arquivo fechado antes dessa troca, uma única vez.
+ */
+function copiarAntesDaTrocaDeMotor(file: string): void {
+  const copia = file + SUFIXO_PRE_NODE_SQLITE;
+  if (!existsSync(file) || existsSync(copia)) return;
+  const fd = openSync(file, 'r');
+  const cab = Buffer.alloc(20);
   try {
-    writeFileSync(tmp, data);
-    renameSync(tmp, file);
-  } catch (err) {
-    rmSync(tmp, { force: true });
-    throw err;
+    if (readSync(fd, cab, 0, 20, 0) < 20) return;
+  } finally {
+    closeSync(fd);
   }
+  if (cab.subarray(0, 15).toString('latin1') !== 'SQLite format 3' || cab[18] !== 1 || cab[19] !== 1) return;
+  copyFileSync(file, copia, constants.COPYFILE_EXCL);
 }
 
-export interface OpenDbOptions { file?: string; wasmPath?: string }
+export interface OpenDbOptions { file?: string }
 
-/** Abre (ou cria) o banco. Sem `file`, cria um banco em memória. */
+/** Abre (ou cria) o banco. Sem `file`, cria um banco em memória. Assíncrona por compatibilidade com os chamadores. */
 export async function openDb(opts: OpenDbOptions = {}): Promise<Db> {
-  const SQL = await carregarSql(opts.wasmPath);
   const file = opts.file ?? null;
-  const raw = file && existsSync(file) ? new SQL.Database(readFileSync(file)) : new SQL.Database();
-  raw.create_function('sem_acento', semAcento);
+  if (file) {
+    mkdirSync(dirname(file), { recursive: true });
+    copiarAntesDaTrocaDeMotor(file);
+  }
+  const raw = new DatabaseSync(file ?? ':memory:');
+  raw.function('sem_acento', { deterministic: true }, (v) => semAcento(v));
+  raw.exec('PRAGMA busy_timeout = 5000;');
+  if (file) raw.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
   raw.exec('PRAGMA foreign_keys = ON;');
   raw.exec(SCHEMA);
   raw.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
 
   let profundidade = 0; // nível de transação aninhada
-  let sujo = false;
 
-  function consultar(sql: string, params?: Params): Record<string, unknown>[] {
+  function preparar(sql: string): StatementSync {
     const stmt = raw.prepare(sql);
-    try {
-      const p = converterParams(params);
-      if (p !== undefined) stmt.bind(p);
-      const out: Record<string, unknown>[] = [];
-      while (stmt.step()) out.push(converterLinha(stmt.getAsObject()));
-      return out;
-    } finally {
-      stmt.free();
-    }
+    stmt.setAllowUnknownNamedParameters(true); // o motor antigo ignorava parâmetro nomeado a mais
+    return stmt;
   }
 
-  function persist(): void {
-    sujo = false;
-    if (!file) return;
-    gravarAtomico(file, raw.export());
-    // Versões antigas do sql.js reabriam o banco no export() (perdendo o PRAGMA); garante que segue ligado.
-    raw.exec('PRAGMA foreign_keys = ON;');
+  function consultar(sql: string, params?: Params): Record<string, unknown>[] {
+    const linhas = preparar(sql).all(...(converterParams(params) as [])) as Record<string, unknown>[];
+    return linhas.map(converterLinha);
   }
 
   const db: Db = {
@@ -268,35 +265,21 @@ export async function openDb(opts: OpenDbOptions = {}): Promise<Db> {
       return consultar(sql, params)[0] as T | undefined;
     },
     run(sql: string, params?: Params): RunResult {
-      const stmt = raw.prepare(sql);
-      try {
-        const p = converterParams(params);
-        if (p !== undefined) stmt.bind(p);
-        stmt.step();
-      } finally {
-        stmt.free();
-      }
-      const changes = raw.getRowsModified();
-      const id = raw.exec('SELECT last_insert_rowid() AS id')[0]?.values[0]?.[0];
-      sujo = true;
-      if (profundidade === 0) persist();
-      return { lastInsertRowid: Number(id ?? 0), changes };
+      const r = preparar(sql).run(...(converterParams(params) as []));
+      return { lastInsertRowid: Number(r.lastInsertRowid), changes: Number(r.changes) };
     },
     exec(sql: string): void {
       raw.exec(sql);
-      sujo = true;
-      if (profundidade === 0) persist();
     },
     transaction<T>(fn: () => T): T {
       const nome = `sp_${profundidade}`;
-      raw.exec(profundidade === 0 ? 'BEGIN' : `SAVEPOINT ${nome}`);
+      raw.exec(profundidade === 0 ? 'BEGIN IMMEDIATE' : `SAVEPOINT ${nome}`);
       profundidade++;
       try {
         const r = fn();
         if (r instanceof Promise) throw new Error('transaction() não aceita funções assíncronas');
         profundidade--;
         raw.exec(profundidade === 0 ? 'COMMIT' : `RELEASE ${nome}`);
-        if (profundidade === 0 && sujo) persist();
         return r;
       } catch (err) {
         profundidade--;
@@ -304,15 +287,13 @@ export async function openDb(opts: OpenDbOptions = {}): Promise<Db> {
         throw err;
       }
     },
-    persist,
     close(): void {
-      if (sujo) persist();
+      if (!raw.isOpen) return;
+      // Esvazia o WAL no arquivo principal: o app fechado não deixa -wal/-shm para trás.
+      if (file) raw.exec('PRAGMA wal_checkpoint(TRUNCATE);');
       raw.close();
     },
   };
-
-  // Banco novo em arquivo: grava logo para o arquivo existir com o schema.
-  if (file && !existsSync(file)) persist();
   return db;
 }
 
