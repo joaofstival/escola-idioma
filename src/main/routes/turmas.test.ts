@@ -5,7 +5,12 @@ import { criarApiTeste, criarBase } from '../test-helpers.ts';
 test('CRUD de turmas com idioma, professor, ocupação e alunos', async () => {
   const api = await criarApiTeste();
   const { ingles, prof } = await criarBase(api);
-  const t = await api.ok('POST', '/turmas', { nome: 'Inglês 1 - Manhã', idioma_id: ingles.id, nivel: 1, ano_letivo: 2026, professor_id: prof.id, horario: 'Seg 8h', capacidade: 2 }, 201);
+  const t = await api.ok(
+    'POST',
+    '/turmas',
+    { nome: 'Inglês 1 - Manhã', idioma_id: ingles.id, nivel: 1, ano_letivo: 2026, professor_id: prof.id, horario: 'Seg 8h', capacidade: 2 },
+    201,
+  );
   assert.equal(t.idioma_nome, 'Inglês');
   assert.equal(t.professor_nome, 'Ana Prof');
   assert.equal(t.ocupacao, 0);
@@ -19,7 +24,10 @@ test('CRUD de turmas com idioma, professor, ocupação e alunos', async () => {
   api.db.run("INSERT INTO matriculas (aluno_id, turma_id, ano_letivo, status) VALUES (?, ?, 2026, 'cancelada')", [a3.id, t.id]);
   const det = await api.ok('GET', `/turmas/${t.id}`);
   assert.equal(det.ocupacao, 2, 'conta só matrículas ativas');
-  assert.deepEqual(det.alunos, [{ id: a2.id, nome: 'Alice' }, { id: a1.id, nome: 'Zeca' }]);
+  assert.deepEqual(det.alunos, [
+    { id: a2.id, nome: 'Alice' },
+    { id: a1.id, nome: 'Zeca' },
+  ]);
 
   const upd = await api.ok('PUT', `/turmas/${t.id}`, { horario: 'Ter 9h', nivel: 2 });
   assert.equal(upd.horario, 'Ter 9h');
@@ -46,8 +54,14 @@ test('turmas: filtros ano, idioma_id e nivel', async () => {
   await nova('EN1-26', ingles.id, 1, 2026);
   await nova('ES1-26', espanhol.id, 1, 2026);
   assert.equal((await api.ok('GET', '/turmas')).length, 4);
-  assert.deepEqual((await api.ok('GET', '/turmas?ano=2026')).map((t: any) => t.nome), ['ES1-26', 'EN1-26', 'EN2-26']);
-  assert.deepEqual((await api.ok('GET', `/turmas?ano=2026&idioma_id=${ingles.id}&nivel=1`)).map((t: any) => t.nome), ['EN1-26']);
+  assert.deepEqual(
+    (await api.ok('GET', '/turmas?ano=2026')).map((t: any) => t.nome),
+    ['ES1-26', 'EN1-26', 'EN2-26'],
+  );
+  assert.deepEqual(
+    (await api.ok('GET', `/turmas?ano=2026&idioma_id=${ingles.id}&nivel=1`)).map((t: any) => t.nome),
+    ['EN1-26'],
+  );
   assert.deepEqual((await api.ok('GET', '/turmas?nivel=1&ano=')).map((t: any) => t.nome).sort(), ['EN1-25', 'EN1-26', 'ES1-26']);
   await api.falha('GET', '/turmas?nivel=13', undefined, 422);
   await api.falha('GET', '/turmas?ano=abc', undefined, 422);
@@ -63,7 +77,10 @@ test('turmas: validações 422 (professor não habilitado, nível fora da faixa,
 
   for (const nivel of [0, 13, 1.5, 'abc']) {
     const r = await api.falha('POST', '/turmas', { ...ok, nivel }, 422);
-    assert.ok(r.detalhes!.some((d) => /nível/.test(d)), `nivel ${nivel}`);
+    assert.ok(
+      r.detalhes!.some((d) => /nível/.test(d)),
+      `nivel ${nivel}`,
+    );
   }
   assert.ok((await api.falha('POST', '/turmas', { ...ok, capacidade: 0 }, 422)).detalhes!.some((d) => /capacidade/.test(d)));
   assert.ok((await api.falha('POST', '/turmas', { ...ok, idioma_id: 99 }, 422)).detalhes!.some((d) => /Idioma 99/.test(d)));

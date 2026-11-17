@@ -49,7 +49,9 @@ function CampoIdiomas({ idiomas }: { idiomas: Idioma[] }) {
                 <Checkbox
                   id={id}
                   checked={marcados.includes(i.id)}
-                  onCheckedChange={(v) => setValue('idiomas', v === true ? [...marcados, i.id] : marcados.filter((x) => x !== i.id), { shouldDirty: true })}
+                  onCheckedChange={(v) =>
+                    setValue('idiomas', v === true ? [...marcados, i.id] : marcados.filter((x) => x !== i.id), { shouldDirty: true })
+                  }
                 />
                 <Label htmlFor={id} className="font-normal">
                   {i.nome}
@@ -66,12 +68,25 @@ function CampoIdiomas({ idiomas }: { idiomas: Idioma[] }) {
   );
 }
 
-function FormProfessor({ prof, idiomas, aoFechar, aoSalvar }: { prof: Professor | null; idiomas: Idioma[]; aoFechar: () => void; aoSalvar: () => void }) {
+function FormProfessor({
+  prof,
+  idiomas,
+  aoFechar,
+  aoSalvar,
+}: {
+  prof: Professor | null;
+  idiomas: Idioma[];
+  aoFechar: () => void;
+  aoSalvar: () => void;
+}) {
   const form = useForm<Valores>({
     resolver: zodResolver(esquema),
     defaultValues: {
-      nome: prof?.nome ?? '', email: prof?.email ?? '', telefone: prof?.telefone ?? '',
-      idiomas: prof?.idiomas.map((i) => i.id) ?? [], ativo: prof?.ativo ?? true,
+      nome: prof?.nome ?? '',
+      email: prof?.email ?? '',
+      telefone: prof?.telefone ?? '',
+      idiomas: prof?.idiomas.map((i) => i.id) ?? [],
+      ativo: prof?.ativo ?? true,
     },
   });
   return (
@@ -82,7 +97,13 @@ function FormProfessor({ prof, idiomas, aoFechar, aoSalvar }: { prof: Professor 
       rotuloSalvar="Salvar professor"
       aoFechar={aoFechar}
       aoEnviar={async (v) => {
-        const corpo = { nome: v.nome.trim(), email: nuloSeVazio(v.email), telefone: nuloSeVazio(v.telefone), idiomas: v.idiomas, ...(prof ? { ativo: v.ativo } : {}) };
+        const corpo = {
+          nome: v.nome.trim(),
+          email: nuloSeVazio(v.email),
+          telefone: nuloSeVazio(v.telefone),
+          idiomas: v.idiomas,
+          ...(prof ? { ativo: v.ativo } : {}),
+        };
         if (prof) await api.put(`/professores/${prof.id}`, corpo);
         else await api.post('/professores', corpo);
         toast.success(prof ? 'Professor atualizado.' : 'Professor cadastrado.');
@@ -118,7 +139,11 @@ export default function Professores() {
   }
 
   const botaoNovo = (
-    <Button onClick={() => (idiomas.data ? setEditando('novo') : (toast.error('Os idiomas ainda não carregaram. Tentando de novo.'), idiomas.reload()))}>
+    <Button
+      onClick={() =>
+        idiomas.data ? setEditando('novo') : (toast.error('Os idiomas ainda não carregaram. Tentando de novo.'), idiomas.reload())
+      }
+    >
       <Plus /> Novo professor
     </Button>
   );
@@ -127,14 +152,38 @@ export default function Professores() {
     <>
       <PageHeader title="Professores">{botaoNovo}</PageHeader>
       <BarraFiltros total={profs ? `${profs.length} professor(es)` : undefined}>
-        <FiltroSelect rotulo="Situação" valor={ativo} aoMudar={setAtivo} opcoes={[{ valor: '', rotulo: 'Todos' }, { valor: 'true', rotulo: 'Ativos' }, { valor: 'false', rotulo: 'Inativos' }]} />
-        <FiltroSelect rotulo="Idioma" valor={idiomaId} aoMudar={setIdiomaId} opcoes={[{ valor: '', rotulo: 'Todos os idiomas' }, ...(idiomas.data ?? []).map((i) => ({ valor: String(i.id), rotulo: i.nome }))]} />
+        <FiltroSelect
+          rotulo="Situação"
+          valor={ativo}
+          aoMudar={setAtivo}
+          opcoes={[
+            { valor: '', rotulo: 'Todos' },
+            { valor: 'true', rotulo: 'Ativos' },
+            { valor: 'false', rotulo: 'Inativos' },
+          ]}
+        />
+        <FiltroSelect
+          rotulo="Idioma"
+          valor={idiomaId}
+          aoMudar={setIdiomaId}
+          opcoes={[
+            { valor: '', rotulo: 'Todos os idiomas' },
+            ...(idiomas.data ?? []).map((i) => ({ valor: String(i.id), rotulo: i.nome })),
+          ]}
+        />
       </BarraFiltros>
 
       {lista.error && !profs ? (
         <EstadoErro erro={lista.error} aoRecarregar={lista.reload} />
       ) : profs && profs.length === 0 ? (
-        <EstadoVazio titulo="Nenhum professor encontrado" descricao={ativo || idiomaId ? 'Nenhum professor com esses filtros. Ajuste os filtros ou cadastre um novo.' : 'Cadastre o primeiro professor.'}>
+        <EstadoVazio
+          titulo="Nenhum professor encontrado"
+          descricao={
+            ativo || idiomaId
+              ? 'Nenhum professor com esses filtros. Ajuste os filtros ou cadastre um novo.'
+              : 'Cadastre o primeiro professor.'
+          }
+        >
           {botaoNovo}
         </EstadoVazio>
       ) : (
@@ -145,7 +194,9 @@ export default function Professores() {
               <TableHead>Telefone</TableHead>
               <TableHead>Idiomas habilitados</TableHead>
               <TableHead>Situação</TableHead>
-              <TableHead className="w-12"><span className="sr-only">Ações</span></TableHead>
+              <TableHead className="w-12">
+                <span className="sr-only">Ações</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           {!profs ? (
@@ -161,7 +212,15 @@ export default function Professores() {
                   <TableCell className="whitespace-nowrap">{ou(p.telefone)}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {p.idiomas.length ? p.idiomas.map((i) => <Badge key={i.id} variant="secondary">{i.nome}</Badge>) : <span className="text-muted-foreground">Nenhum</span>}
+                      {p.idiomas.length ? (
+                        p.idiomas.map((i) => (
+                          <Badge key={i.id} variant="secondary">
+                            {i.nome}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground">Nenhum</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -172,7 +231,13 @@ export default function Professores() {
                       item={p.nome}
                       acoes={[
                         { rotulo: 'Editar professor', icone: Pencil, aoClicar: () => setEditando(p) },
-                        { rotulo: 'Ver turmas', icone: Presentation, aoClicar: () => { location.hash = `#/turmas?professor_id=${p.id}`; } },
+                        {
+                          rotulo: 'Ver turmas',
+                          icone: Presentation,
+                          aoClicar: () => {
+                            location.hash = `#/turmas?professor_id=${p.id}`;
+                          },
+                        },
                         p.ativo
                           ? { rotulo: 'Inativar professor', icone: PowerOff, destrutiva: true, aoClicar: () => setInativar(p) }
                           : { rotulo: 'Reativar professor', icone: Power, aoClicar: () => void alternar(p) },
@@ -186,13 +251,29 @@ export default function Professores() {
         </Table>
       )}
 
-      {editando && idiomas.data && <FormProfessor prof={editando === 'novo' ? null : editando} idiomas={idiomas.data} aoFechar={() => setEditando(null)} aoSalvar={lista.reload} />}
+      {editando && idiomas.data && (
+        <FormProfessor
+          prof={editando === 'novo' ? null : editando}
+          idiomas={idiomas.data}
+          aoFechar={() => setEditando(null)}
+          aoSalvar={lista.reload}
+        />
+      )}
       <ConfirmarApagar
-        alvo={inativar && { nome: inativar.nome, tipo: 'professor', aviso: 'Ele continua nas turmas atuais, mas não poderá ser alocado em novas turmas.' }}
+        alvo={
+          inativar && {
+            nome: inativar.nome,
+            tipo: 'professor',
+            aviso: 'Ele continua nas turmas atuais, mas não poderá ser alocado em novas turmas.',
+          }
+        }
         titulo={(a) => `Inativar ${a.tipo} “${a.nome}”?`}
         rotuloConfirmar="Inativar professor"
         aoCancelar={() => setInativar(null)}
-        aoConfirmar={() => { if (inativar) void alternar(inativar); setInativar(null); }}
+        aoConfirmar={() => {
+          if (inativar) void alternar(inativar);
+          setInativar(null);
+        }}
       />
     </>
   );

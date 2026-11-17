@@ -6,7 +6,10 @@ test('CRUD de professores com idiomas', async () => {
   const api = await criarApiTeste();
   const { ingles, espanhol } = await criarBase(api);
   const p = await api.ok('POST', '/professores', { nome: 'Carlos', email: 'carlos@escola.com', idiomas: [espanhol.id, ingles.id] }, 201);
-  assert.deepEqual(p.idiomas, [{ id: espanhol.id, nome: 'Espanhol' }, { id: ingles.id, nome: 'Inglês' }]);
+  assert.deepEqual(p.idiomas, [
+    { id: espanhol.id, nome: 'Espanhol' },
+    { id: ingles.id, nome: 'Inglês' },
+  ]);
   assert.equal(p.ativo, true);
   const upd = await api.ok('PUT', `/professores/${p.id}`, { idiomas: [espanhol.id], telefone: '123' });
   assert.deepEqual(upd.idiomas, [{ id: espanhol.id, nome: 'Espanhol' }]);
@@ -25,9 +28,18 @@ test('professores: filtros idioma_id e ativo', async () => {
   const api = await criarApiTeste();
   const { ingles, espanhol } = await criarBase(api);
   await api.ok('POST', '/professores', { nome: 'Bia', idiomas: [espanhol.id], ativo: false });
-  assert.deepEqual((await api.ok('GET', `/professores?idioma_id=${espanhol.id}`)).map((p: any) => p.nome), ['Bia']);
-  assert.deepEqual((await api.ok('GET', `/professores?idioma_id=${ingles.id}`)).map((p: any) => p.nome), ['Ana Prof']);
-  assert.deepEqual((await api.ok('GET', '/professores?ativo=false')).map((p: any) => p.nome), ['Bia']);
+  assert.deepEqual(
+    (await api.ok('GET', `/professores?idioma_id=${espanhol.id}`)).map((p: any) => p.nome),
+    ['Bia'],
+  );
+  assert.deepEqual(
+    (await api.ok('GET', `/professores?idioma_id=${ingles.id}`)).map((p: any) => p.nome),
+    ['Ana Prof'],
+  );
+  assert.deepEqual(
+    (await api.ok('GET', '/professores?ativo=false')).map((p: any) => p.nome),
+    ['Bia'],
+  );
 });
 
 test('professores: validações 422 e 404', async () => {
@@ -42,7 +54,14 @@ test('professores: validações 422 e 404', async () => {
 test('professor alocado em turma: não exclui nem remove habilitação do idioma', async () => {
   const api = await criarApiTeste();
   const { ingles, espanhol, prof } = await criarBase(api);
-  await api.ok('POST', '/turmas', { nome: 'Inglês 1', idioma_id: ingles.id, nivel: 1, ano_letivo: 2026, professor_id: prof.id, capacidade: 10 });
+  await api.ok('POST', '/turmas', {
+    nome: 'Inglês 1',
+    idioma_id: ingles.id,
+    nivel: 1,
+    ano_letivo: 2026,
+    professor_id: prof.id,
+    capacidade: 10,
+  });
   const del = await api.falha('DELETE', `/professores/${prof.id}`, undefined, 422);
   assert.match(del.erro, /inative/);
   const rem = await api.falha('PUT', `/professores/${prof.id}`, { idiomas: [espanhol.id] }, 422);

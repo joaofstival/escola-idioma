@@ -5,7 +5,11 @@ import { dirname } from 'node:path';
 /** fsync do arquivo (ou da pasta, para o rename ficar durável). */
 export function sincronizar(caminho: string): void {
   const fd = openSync(caminho, 'r');
-  try { fsyncSync(fd); } finally { closeSync(fd); }
+  try {
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** Renomeia e sincroniza o arquivo e a pasta. */

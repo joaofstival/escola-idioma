@@ -22,7 +22,10 @@ import type { Idioma } from '../../shared/types.ts';
 
 const esquema = z.object({
   nome: textoObrigatorio('o nome', 60),
-  codigo: textoObrigatorio('o código', 12).refine((v) => /^[a-z]{2,3}(-[a-z0-9]{2,8})?$/i.test(v), 'Use o padrão ISO 639-1, como en, es ou pt-br.'),
+  codigo: textoObrigatorio('o código', 12).refine(
+    (v) => /^[a-z]{2,3}(-[a-z0-9]{2,8})?$/i.test(v),
+    'Use o padrão ISO 639-1, como en, es ou pt-br.',
+  ),
   mensalidade: z.string().refine((v) => {
     const n = paraNumero(v);
     return !Number.isNaN(n) && n >= 0 && n <= 100000;
@@ -33,7 +36,11 @@ type Valores = z.infer<typeof esquema>;
 function FormIdioma({ idioma, aoFechar, aoSalvar }: { idioma: Idioma | null; aoFechar: () => void; aoSalvar: () => void }) {
   const form = useForm<Valores>({
     resolver: zodResolver(esquema),
-    defaultValues: { nome: idioma?.nome ?? '', codigo: idioma?.codigo ?? '', mensalidade: idioma ? String(idioma.mensalidade).replace('.', ',') : '' },
+    defaultValues: {
+      nome: idioma?.nome ?? '',
+      codigo: idioma?.codigo ?? '',
+      mensalidade: idioma ? String(idioma.mensalidade).replace('.', ',') : '',
+    },
   });
   return (
     <FormDialog
@@ -52,7 +59,11 @@ function FormIdioma({ idioma, aoFechar, aoSalvar }: { idioma: Idioma | null; aoF
       <CampoTexto<Valores> nome="nome" rotulo="Nome" obrigatorio maxLength={60} placeholder="Ex.: Inglês" autoFocus />
       <CampoTexto<Valores> nome="codigo" rotulo="Código (ISO 639-1)" obrigatorio maxLength={12} placeholder="Ex.: en, es, pt-br" />
       <CampoTexto<Valores>
-        nome="mensalidade" rotulo="Mensalidade (R$)" obrigatorio inputMode="decimal" placeholder="0,00"
+        nome="mensalidade"
+        rotulo="Mensalidade (R$)"
+        obrigatorio
+        inputMode="decimal"
+        placeholder="0,00"
         dica="Valor fixo usado nas mensalidades. Uma alteração vale para as próximas matrículas; as mensalidades já geradas não mudam."
       />
     </FormDialog>
@@ -64,7 +75,9 @@ export default function Idiomas() {
   const [editando, setEditando] = useState<Idioma | 'novo' | null>(null);
   const [apagar, setApagar] = useState<Idioma | null>(null);
   const alvo: AlvoApagar | null = apagar && {
-    nome: apagar.nome, tipo: 'idioma', aviso: 'Só é possível se não houver turmas, materiais ou professores vinculados.',
+    nome: apagar.nome,
+    tipo: 'idioma',
+    aviso: 'Só é possível se não houver turmas, materiais ou professores vinculados.',
   };
 
   async function confirmarApagar() {
@@ -90,7 +103,8 @@ export default function Idiomas() {
       <div role="note" className="mb-6 flex gap-2 rounded-lg border border-info-deep/30 bg-info-soft p-3 text-info-deep">
         <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <p>
-          <strong>Valor fixo usado nas mensalidades.</strong> Ao matricular um aluno, todas as mensalidades do ano são geradas com o valor do idioma da turma.
+          <strong>Valor fixo usado nas mensalidades.</strong> Ao matricular um aluno, todas as mensalidades do ano são geradas com o valor
+          do idioma da turma.
         </p>
       </div>
 

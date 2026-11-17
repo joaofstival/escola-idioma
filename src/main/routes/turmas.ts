@@ -23,7 +23,9 @@ export function buscarTurma(db: Db, id: number): Turma {
   const turma = encontrado(db.get<Turma>(`${SELECT_TURMA} WHERE t.id = ?`, [id]), 'Turma não encontrada');
   turma.alunos = db.all<{ id: number; nome: string }>(
     `SELECT a.id, a.nome FROM matriculas m JOIN alunos a ON a.id = m.aluno_id
-     WHERE m.turma_id = ? AND m.status = 'ativa' ORDER BY a.nome COLLATE NOCASE`, [id]);
+     WHERE m.turma_id = ? AND m.status = 'ativa' ORDER BY a.nome COLLATE NOCASE`,
+    [id],
+  );
   return turma;
 }
 
@@ -51,16 +53,23 @@ function validar(db: Db, dados: Record<string, unknown>, atual: Turma | null) {
     }
   }
 
-  if (nome && ano_letivo && db.get('SELECT 1 FROM turmas WHERE nome = ? AND ano_letivo = ? AND id <> ?', [nome, ano_letivo, atual?.id ?? 0])) {
+  if (
+    nome &&
+    ano_letivo &&
+    db.get('SELECT 1 FROM turmas WHERE nome = ? AND ano_letivo = ? AND id <> ?', [nome, ano_letivo, atual?.id ?? 0])
+  ) {
     v.erro(`Já existe uma turma "${nome}" em ${ano_letivo}`);
   }
 
   if (atual) {
     const ocupacao = atual.ocupacao ?? 0;
-    if (capacidade && capacidade < ocupacao) v.erro(`capacidade não pode ser menor que a ocupação atual (${ocupacao} aluno(s) matriculados)`);
+    if (capacidade && capacidade < ocupacao)
+      v.erro(`capacidade não pode ser menor que a ocupação atual (${ocupacao} aluno(s) matriculados)`);
     const temMatriculas = !!db.get('SELECT 1 FROM matriculas WHERE turma_id = ?', [atual.id]);
-    if (temMatriculas && idioma_id && idioma_id !== atual.idioma_id) v.erro('Não é possível trocar o idioma de uma turma que já tem matrículas');
-    if (temMatriculas && ano_letivo && ano_letivo !== atual.ano_letivo) v.erro('Não é possível trocar o ano letivo de uma turma que já tem matrículas');
+    if (temMatriculas && idioma_id && idioma_id !== atual.idioma_id)
+      v.erro('Não é possível trocar o idioma de uma turma que já tem matrículas');
+    if (temMatriculas && ano_letivo && ano_letivo !== atual.ano_letivo)
+      v.erro('Não é possível trocar o ano letivo de uma turma que já tem matrículas');
   }
 
   v.verificar();
@@ -72,27 +81,47 @@ export function register(router: Router, db: Db): void {
     const where: string[] = [];
     const p: Record<string, number> = {};
     const ano = queryInt(query, 'ano', { min: 2000, max: 2100 });
-    if (ano !== undefined) { where.push('t.ano_letivo = :ano'); p.ano = ano; }
+    if (ano !== undefined) {
+      where.push('t.ano_letivo = :ano');
+      p.ano = ano;
+    }
     const idiomaId = queryInt(query, 'idioma_id', { min: 1 });
-    if (idiomaId !== undefined) { where.push('t.idioma_id = :idioma_id'); p.idioma_id = idiomaId; }
+    if (idiomaId !== undefined) {
+      where.push('t.idioma_id = :idioma_id');
+      p.idioma_id = idiomaId;
+    }
     const nivel = queryInt(query, 'nivel', { min: NIVEL_MIN, max: NIVEL_MAX });
-    if (nivel !== undefined) { where.push('t.nivel = :nivel'); p.nivel = nivel; }
+    if (nivel !== undefined) {
+      where.push('t.nivel = :nivel');
+      p.nivel = nivel;
+    }
     const professorId = queryInt(query, 'professor_id', { min: 1 });
-    if (professorId !== undefined) { where.push('t.professor_id = :professor_id'); p.professor_id = professorId; }
+    if (professorId !== undefined) {
+      where.push('t.professor_id = :professor_id');
+      p.professor_id = professorId;
+    }
     return db.all<Turma>(
       `${SELECT_TURMA} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-       ORDER BY t.ano_letivo DESC, i.nome, t.nivel, t.nome COLLATE NOCASE`, p);
+       ORDER BY t.ano_letivo DESC, i.nome, t.nivel, t.nome COLLATE NOCASE`,
+      p,
+    );
   });
 
   router.get('/turmas/:id', ({ params }) => buscarTurma(db, parseId(params.id, 'Turma')));
 
-  router.post('/turmas', ({ body }) => {
-    const d = validar(db, exigirCorpo(body), null);
-    const { lastInsertRowid } = db.run(
-      `INSERT INTO turmas (nome, idioma_id, nivel, ano_letivo, professor_id, horario, capacidade)
-       VALUES (:nome, :idioma_id, :nivel, :ano_letivo, :professor_id, :horario, :capacidade)`, d);
-    return buscarTurma(db, lastInsertRowid);
-  }, { status: 201 });
+  router.post(
+    '/turmas',
+    ({ body }) => {
+      const d = validar(db, exigirCorpo(body), null);
+      const { lastInsertRowid } = db.run(
+        `INSERT INTO turmas (nome, idioma_id, nivel, ano_letivo, professor_id, horario, capacidade)
+       VALUES (:nome, :idioma_id, :nivel, :ano_letivo, :professor_id, :horario, :capacidade)`,
+        d,
+      );
+      return buscarTurma(db, lastInsertRowid);
+    },
+    { status: 201 },
+  );
 
   router.put('/turmas/:id', ({ params, body }) => {
     const id = parseId(params.id, 'Turma');
@@ -101,7 +130,9 @@ export function register(router: Router, db: Db): void {
     const d = validar(db, { ...base, ...exigirCorpo(body) }, atual);
     db.run(
       `UPDATE turmas SET nome = :nome, idioma_id = :idioma_id, nivel = :nivel, ano_letivo = :ano_letivo,
-         professor_id = :professor_id, horario = :horario, capacidade = :capacidade WHERE id = :id`, { ...d, id });
+         professor_id = :professor_id, horario = :horario, capacidade = :capacidade WHERE id = :id`,
+      { ...d, id },
+    );
     return buscarTurma(db, id);
   });
 
@@ -110,13 +141,18 @@ export function register(router: Router, db: Db): void {
     const turma = buscarTurma(db, id);
     const c = db.get<{ matriculas: number; avaliacoes: number }>(
       `SELECT (SELECT count(*) FROM matriculas WHERE turma_id = :id) AS matriculas,
-              (SELECT count(*) FROM avaliacoes WHERE turma_id = :id) AS avaliacoes`, { id })!;
+              (SELECT count(*) FROM avaliacoes WHERE turma_id = :id) AS avaliacoes`,
+      { id },
+    )!;
     const deps: string[] = [];
     if (c.matriculas) deps.push(`${c.matriculas} matrícula(s)`);
     if (c.avaliacoes) deps.push(`${c.avaliacoes} avaliação(ões)`);
     if (deps.length) {
-      throw new HttpError(422,
-        `Não é possível excluir a turma "${turma.nome}" porque ela possui ${deps.join(' e ')}. Cancele ou transfira as matrículas antes.`, deps);
+      throw new HttpError(
+        422,
+        `Não é possível excluir a turma "${turma.nome}" porque ela possui ${deps.join(' e ')}. Cancele ou transfira as matrículas antes.`,
+        deps,
+      );
     }
     db.run('DELETE FROM turmas WHERE id = ?', [id]);
     return { ok: true };

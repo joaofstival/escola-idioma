@@ -13,7 +13,14 @@ import { cn } from '@/lib/utils';
  * `aoEnviar` lança erro para manter o diálogo aberto; ao terminar sem erro, chame-se `aoFechar` aqui dentro.
  */
 export function FormDialog<T extends FieldValues>({
-  titulo, descricao, form, aoEnviar, aoFechar, rotuloSalvar, children, larga,
+  titulo,
+  descricao,
+  form,
+  aoEnviar,
+  aoFechar,
+  rotuloSalvar,
+  children,
+  larga,
 }: {
   titulo: string;
   descricao?: string;
@@ -43,7 +50,11 @@ export function FormDialog<T extends FieldValues>({
       <DialogContent className={cn(larga ? 'sm:max-w-2xl' : 'sm:max-w-md')}>
         <DialogHeader>
           <DialogTitle>{titulo}</DialogTitle>
-          {descricao ? <DialogDescription>{descricao}</DialogDescription> : <DialogDescription className="sr-only">{titulo}</DialogDescription>}
+          {descricao ? (
+            <DialogDescription>{descricao}</DialogDescription>
+          ) : (
+            <DialogDescription className="sr-only">{titulo}</DialogDescription>
+          )}
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
@@ -52,7 +63,15 @@ export function FormDialog<T extends FieldValues>({
                 <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <div>
                   <p className="font-medium">Não foi possível salvar.</p>
-                  {erro.length === 1 ? <p>{erro[0]}</p> : <ul className="list-disc pl-4">{erro.map((m) => <li key={m}>{m}</li>)}</ul>}
+                  {erro.length === 1 ? (
+                    <p>{erro[0]}</p>
+                  ) : (
+                    <ul className="list-disc pl-4">
+                      {erro.map((m) => (
+                        <li key={m}>{m}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             )}

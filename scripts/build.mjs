@@ -10,7 +10,14 @@ const common = { bundle: true, sourcemap: true, logLevel: 'info', target: 'es202
 
 await Promise.all([
   build({ ...common, entryPoints: ['src/main/main.ts'], outfile: 'dist/main.js', platform: 'node', format: 'esm', external: ['electron'] }),
-  build({ ...common, entryPoints: ['src/preload/preload.ts'], outfile: 'dist/preload.cjs', platform: 'node', format: 'cjs', external: ['electron'] }),
+  build({
+    ...common,
+    entryPoints: ['src/preload/preload.ts'],
+    outfile: 'dist/preload.cjs',
+    platform: 'node',
+    format: 'cjs',
+    external: ['electron'],
+  }),
 ]);
 await viteBuild({ logLevel: 'warn' });
 

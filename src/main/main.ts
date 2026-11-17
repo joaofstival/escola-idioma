@@ -11,7 +11,11 @@ import { createApi } from './app.ts';
 import type { Router } from './router.ts';
 import { seed } from './seed.ts';
 import {
-  concluirRestauracaoPendente, exportarBackup, iniciarBackupAutomatico, prepararRestauracao, validarArquivoDeBackup,
+  concluirRestauracaoPendente,
+  exportarBackup,
+  iniciarBackupAutomatico,
+  prepararRestauracao,
+  validarArquivoDeBackup,
 } from './backup.ts';
 import type { ApiRequest, ApiResponse, ResultadoBackupIpc } from '../shared/types.ts';
 
@@ -67,11 +71,13 @@ function registrarIpc(): void {
     if (typeof content !== 'string') throw new Error('Conteúdo inválido para salvar');
     const nome = basename(typeof defaultName === 'string' && defaultName.trim() ? defaultName : 'arquivo.txt');
     const ext = extname(nome).slice(1).toLowerCase();
-    const filtros = ext === 'csv'
-      ? [{ name: 'Planilha CSV', extensions: ['csv'] }]
-      : ext ? [{ name: ext.toUpperCase(), extensions: [ext] }] : [];
+    const filtros =
+      ext === 'csv' ? [{ name: 'Planilha CSV', extensions: ['csv'] }] : ext ? [{ name: ext.toUpperCase(), extensions: [ext] }] : [];
     const win = BrowserWindow.fromWebContents(event.sender);
-    const opcoes = { defaultPath: join(app.getPath('documents'), nome), filters: [...filtros, { name: 'Todos os arquivos', extensions: ['*'] }] };
+    const opcoes = {
+      defaultPath: join(app.getPath('documents'), nome),
+      filters: [...filtros, { name: 'Todos os arquivos', extensions: ['*'] }],
+    };
     const r = win ? await dialog.showSaveDialog(win, opcoes) : await dialog.showSaveDialog(opcoes);
     if (r.canceled || !r.filePath) return null;
     // CSV com BOM para o Excel reconhecer UTF-8 (acentos).
@@ -81,8 +87,15 @@ function registrarIpc(): void {
   });
 }
 
-const FILTRO_DB = [{ name: 'Banco da escola (.db)', extensions: ['db'] }, { name: 'Todos os arquivos', extensions: ['*'] }];
-const falha = (err: unknown): ResultadoBackupIpc => ({ ok: false, cancelado: false, erro: err instanceof Error ? err.message : String(err) });
+const FILTRO_DB = [
+  { name: 'Banco da escola (.db)', extensions: ['db'] },
+  { name: 'Todos os arquivos', extensions: ['*'] },
+];
+const falha = (err: unknown): ResultadoBackupIpc => ({
+  ok: false,
+  cancelado: false,
+  erro: err instanceof Error ? err.message : String(err),
+});
 
 function registrarIpcBackup(): void {
   ipcMain.handle('backup:exportar', async (event): Promise<ResultadoBackupIpc> => {
@@ -105,15 +118,24 @@ function registrarIpcBackup(): void {
     if (!origemConfiavel(event)) throw new Error('Origem não autorizada');
     if (!db) return { ok: false, cancelado: false, erro: 'Banco de dados ainda não está pronto' };
     const win = BrowserWindow.fromWebContents(event.sender);
-    const opcoes = { title: 'Escolha o backup a restaurar', defaultPath: app.getPath('documents'), properties: ['openFile' as const], filters: FILTRO_DB };
+    const opcoes = {
+      title: 'Escolha o backup a restaurar',
+      defaultPath: app.getPath('documents'),
+      properties: ['openFile' as const],
+      filters: FILTRO_DB,
+    };
     const r = win ? await dialog.showOpenDialog(win, opcoes) : await dialog.showOpenDialog(opcoes);
     if (r.canceled || r.filePaths.length === 0) return { ok: false, cancelado: true };
     const escolhido = r.filePaths[0];
     const problema = validarArquivoDeBackup(escolhido);
     if (problema) return { ok: false, cancelado: false, erro: problema };
     const msg = {
-      type: 'warning' as const, buttons: ['Restaurar e reiniciar', 'Cancelar'], defaultId: 1, cancelId: 1,
-      title: 'Restaurar backup', message: `Substituir os dados atuais pelos de "${basename(escolhido)}"?`,
+      type: 'warning' as const,
+      buttons: ['Restaurar e reiniciar', 'Cancelar'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Restaurar backup',
+      message: `Substituir os dados atuais pelos de "${basename(escolhido)}"?`,
       detail: 'Os dados atuais ficam guardados na pasta do app (escola.db.pre-restauracao-*). O app será reiniciado.',
     };
     const c = win ? await dialog.showMessageBox(win, msg) : await dialog.showMessageBox(msg);
@@ -137,7 +159,10 @@ function registrarIpcBackup(): void {
       setTimeout(() => app.exit(1), 50);
       return falha(new Error('Não foi possível fechar o banco com segurança; nada foi restaurado. O app vai reiniciar.'));
     }
-    setTimeout(() => { app.relaunch(); app.exit(0); }, 50);
+    setTimeout(() => {
+      app.relaunch();
+      app.exit(0);
+    }, 50);
     return { ok: true, arquivo: escolhido };
   });
 }
@@ -159,7 +184,9 @@ function criarJanela(): void {
     },
   });
   janela.once('ready-to-show', () => janela?.show());
-  janela.on('closed', () => { janela = null; });
+  janela.on('closed', () => {
+    janela = null;
+  });
   void janela.loadFile(INDEX_HTML);
   if (process.env.ESCOLA_SCREENSHOT) capturarTelas(janela, process.env.ESCOLA_SCREENSHOT);
 }
@@ -169,7 +196,10 @@ function criarJanela(): void {
  * abre cada rota, salva <pasta>/<rota>.png e fecha o app. Use ESCOLA_USERDATA para um banco separado.
  */
 function capturarTelas(win: BrowserWindow, pasta: string): void {
-  const rotas = (process.env.ESCOLA_ROTAS || 'dashboard').split(',').map((r) => r.trim()).filter(Boolean);
+  const rotas = (process.env.ESCOLA_ROTAS || 'dashboard')
+    .split(',')
+    .map((r) => r.trim())
+    .filter(Boolean);
   win.webContents.once('did-finish-load', async () => {
     mkdirSync(pasta, { recursive: true });
     for (const rota of rotas) {

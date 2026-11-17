@@ -1,13 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-  BookOpen, ClipboardCheck, Coins, GraduationCap, Languages, LayoutDashboard, Menu, Presentation,
-  ScrollText, Users, UserRound, Wallet, X, type LucideIcon,
+  BookOpen,
+  ClipboardCheck,
+  Coins,
+  GraduationCap,
+  Languages,
+  LayoutDashboard,
+  Menu,
+  Presentation,
+  ScrollText,
+  Settings,
+  Users,
+  UserRound,
+  Wallet,
+  X,
+  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-interface Item { rota: string; rotulo: string; icone: LucideIcon }
+interface Item {
+  rota: string;
+  rotulo: string;
+  icone: LucideIcon;
+}
 export const NAVEGACAO: { grupo: string; itens: Item[] }[] = [
   { grupo: 'Geral', itens: [{ rota: 'dashboard', rotulo: 'Painel', icone: LayoutDashboard }] },
   {
@@ -34,7 +51,13 @@ export const NAVEGACAO: { grupo: string; itens: Item[] }[] = [
       { rota: 'cotacao', rotulo: 'Cotação de moedas', icone: Coins },
     ],
   },
-  { grupo: 'Ferramentas', itens: [{ rota: 'traducao', rotulo: 'Tradutor', icone: ScrollText }] },
+  {
+    grupo: 'Ferramentas',
+    itens: [
+      { rota: 'traducao', rotulo: 'Tradutor', icone: ScrollText },
+      { rota: 'configuracoes', rotulo: 'Configurações', icone: Settings },
+    ],
+  },
 ];
 
 function Navegacao({ aoNavegar }: { aoNavegar?: () => void }) {
@@ -67,9 +90,11 @@ function Navegacao({ aoNavegar }: { aoNavegar?: () => void }) {
 
 /** Janela: barra lateral fixa de 240px (menu recolhível em janela estreita) + área de conteúdo branca. */
 export function Shell() {
-  const [aberto, setAberto] = useState(false);
   const { pathname } = useLocation();
-  useEffect(() => setAberto(false), [pathname]);
+  // O menu aberto vale só para a rota em que foi aberto: ao navegar, fecha sozinho.
+  const [abertoEm, setAbertoEm] = useState<string | null>(null);
+  const aberto = abertoEm === pathname;
+  const setAberto = (v: boolean) => setAbertoEm(v ? pathname : null);
 
   return (
     <div className="flex min-h-screen">
@@ -87,7 +112,7 @@ export function Shell() {
       {aberto && <div className="fixed inset-0 z-20 bg-foreground/30 md:hidden" onClick={() => setAberto(false)} aria-hidden="true" />}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-14 items-center border-b px-4 md:hidden">
-          <Button variant="ghost" size="icon" aria-label={aberto ? 'Fechar menu' : 'Abrir menu'} onClick={() => setAberto((v) => !v)}>
+          <Button variant="ghost" size="icon" aria-label={aberto ? 'Fechar menu' : 'Abrir menu'} onClick={() => setAberto(!aberto)}>
             {aberto ? <X /> : <Menu />}
           </Button>
         </div>

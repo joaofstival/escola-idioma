@@ -55,14 +55,30 @@ function aptos(profs: Professor[], idiomaId: number | null, atual: number | null
 }
 
 function FormTurma({
-  turma, idiomas, profs, padrao, aoFechar, aoSalvar,
-}: { turma: Turma | null; idiomas: Idioma[]; profs: Professor[]; padrao: { ano?: number; idioma_id?: number }; aoFechar: () => void; aoSalvar: (t: Turma) => void }) {
+  turma,
+  idiomas,
+  profs,
+  padrao,
+  aoFechar,
+  aoSalvar,
+}: {
+  turma: Turma | null;
+  idiomas: Idioma[];
+  profs: Professor[];
+  padrao: { ano?: number; idioma_id?: number };
+  aoFechar: () => void;
+  aoSalvar: (t: Turma) => void;
+}) {
   const form = useForm<Valores>({
     resolver: zodResolver(esquema),
     defaultValues: {
-      nome: turma?.nome ?? '', idioma_id: String(turma?.idioma_id ?? padrao.idioma_id ?? ''), nivel: String(turma?.nivel ?? 1),
-      ano_letivo: String(turma?.ano_letivo ?? padrao.ano ?? anoAtual()), capacidade: String(turma?.capacidade ?? 12),
-      professor_id: turma?.professor_id ? String(turma.professor_id) : '', horario: turma?.horario ?? '',
+      nome: turma?.nome ?? '',
+      idioma_id: String(turma?.idioma_id ?? padrao.idioma_id ?? ''),
+      nivel: String(turma?.nivel ?? 1),
+      ano_letivo: String(turma?.ano_letivo ?? padrao.ano ?? anoAtual()),
+      capacidade: String(turma?.capacidade ?? 12),
+      professor_id: turma?.professor_id ? String(turma.professor_id) : '',
+      horario: turma?.horario ?? '',
     },
   });
   const idiomaId = Number(form.watch('idioma_id')) || null;
@@ -77,7 +93,10 @@ function FormTurma({
     ? [{ valor: '', rotulo: 'Escolha o idioma primeiro' }]
     : !lista.length
       ? [{ valor: '', rotulo: 'Nenhum professor habilitado neste idioma' }]
-      : [{ valor: '', rotulo: 'Sem professor (definir depois)' }, ...lista.map((p) => ({ valor: String(p.id), rotulo: p.nome + (p.ativo ? '' : ' (inativo)') }))];
+      : [
+          { valor: '', rotulo: 'Sem professor (definir depois)' },
+          ...lista.map((p) => ({ valor: String(p.id), rotulo: p.nome + (p.ativo ? '' : ' (inativo)') })),
+        ];
 
   return (
     <FormDialog
@@ -88,17 +107,33 @@ function FormTurma({
       aoFechar={aoFechar}
       aoEnviar={async (v) => {
         const corpo = {
-          nome: v.nome.trim(), idioma_id: Number(v.idioma_id), nivel: Number(v.nivel), ano_letivo: paraNumero(v.ano_letivo),
-          capacidade: paraNumero(v.capacidade), professor_id: v.professor_id ? Number(v.professor_id) : null, horario: nuloSeVazio(v.horario),
+          nome: v.nome.trim(),
+          idioma_id: Number(v.idioma_id),
+          nivel: Number(v.nivel),
+          ano_letivo: paraNumero(v.ano_letivo),
+          capacidade: paraNumero(v.capacidade),
+          professor_id: v.professor_id ? Number(v.professor_id) : null,
+          horario: nuloSeVazio(v.horario),
         };
         const salvo = turma ? await api.put<Turma>(`/turmas/${turma.id}`, corpo) : await api.post<Turma>('/turmas', corpo);
         toast.success(turma ? 'Turma atualizada.' : 'Turma criada.');
         aoSalvar(salvo);
       }}
     >
-      <CampoTexto<Valores> nome="nome" rotulo="Nome da turma" obrigatorio maxLength={80} placeholder="Ex.: Inglês 2 - Noite" className="sm:col-span-2" autoFocus />
+      <CampoTexto<Valores>
+        nome="nome"
+        rotulo="Nome da turma"
+        obrigatorio
+        maxLength={80}
+        placeholder="Ex.: Inglês 2 - Noite"
+        className="sm:col-span-2"
+        autoFocus
+      />
       <CampoSelect<Valores>
-        nome="idioma_id" rotulo="Idioma" obrigatorio placeholder={idiomas.length ? 'Selecione' : 'Cadastre um idioma'}
+        nome="idioma_id"
+        rotulo="Idioma"
+        obrigatorio
+        placeholder={idiomas.length ? 'Selecione' : 'Cadastre um idioma'}
         opcoes={idiomas.map((i) => ({ valor: String(i.id), rotulo: `${i.nome} · ${brl(i.mensalidade)}/mês` }))}
       />
       <CampoSelect<Valores> nome="nivel" rotulo="Nível" obrigatorio opcoes={opcoesNivel()} />
@@ -115,7 +150,17 @@ function FormTurma({
 }
 
 /** Carrega idiomas e professores só quando o formulário abre. */
-function AbrirFormTurma({ turma, padrao, aoFechar, aoSalvar }: { turma: Turma | null; padrao: { ano?: number; idioma_id?: number }; aoFechar: () => void; aoSalvar: (t: Turma) => void }) {
+function AbrirFormTurma({
+  turma,
+  padrao,
+  aoFechar,
+  aoSalvar,
+}: {
+  turma: Turma | null;
+  padrao: { ano?: number; idioma_id?: number };
+  aoFechar: () => void;
+  aoSalvar: (t: Turma) => void;
+}) {
   const dados = useQuery(() => Promise.all([api.get<Idioma[]>('/idiomas'), api.get<Professor[]>('/professores')]), []);
   useEffect(() => {
     if (dados.error) {
@@ -136,10 +181,22 @@ function Lista() {
   const idiomaId = params.get('idioma_id') ?? '';
   const nivelF = params.get('nivel') ?? '';
   const professorId = params.get('professor_id') ?? '';
-  const mudar = (k: string, v: string) => setParams((p) => { const n = new URLSearchParams(p); if (v) n.set(k, v); else n.delete(k); return n; }, { replace: true });
+  const mudar = (k: string, v: string) =>
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        if (v) n.set(k, v);
+        else n.delete(k);
+        return n;
+      },
+      { replace: true },
+    );
 
   const idiomas = useQuery(() => api.get<Idioma[]>('/idiomas'), []);
-  const lista = useQuery(() => api.get<Turma[]>('/turmas', { ano, idioma_id: idiomaId, nivel: nivelF, professor_id: professorId }), [ano, idiomaId, nivelF, professorId]);
+  const lista = useQuery(
+    () => api.get<Turma[]>('/turmas', { ano, idioma_id: idiomaId, nivel: nivelF, professor_id: professorId }),
+    [ano, idiomaId, nivelF, professorId],
+  );
   const [editando, setEditando] = useState<Turma | 'nova' | null>(null);
   const turmas = lista.data;
   const vagas = turmas?.reduce((s, t) => s + Math.max(0, t.capacidade - (t.ocupacao ?? 0)), 0) ?? 0;
@@ -155,7 +212,15 @@ function Lista() {
       <PageHeader title="Turmas">{botaoNova}</PageHeader>
       <BarraFiltros total={turmas ? `${turmas.length} turma(s) · ${vagas} vaga(s) livre(s)` : undefined}>
         <FiltroSelect rotulo="Ano letivo" valor={ano} aoMudar={(v) => mudar('ano', v)} opcoes={opcoesAno(Number(ano))} />
-        <FiltroSelect rotulo="Idioma" valor={idiomaId} aoMudar={(v) => mudar('idioma_id', v)} opcoes={[{ valor: '', rotulo: 'Todos os idiomas' }, ...(idiomas.data ?? []).map((i) => ({ valor: String(i.id), rotulo: i.nome }))]} />
+        <FiltroSelect
+          rotulo="Idioma"
+          valor={idiomaId}
+          aoMudar={(v) => mudar('idioma_id', v)}
+          opcoes={[
+            { valor: '', rotulo: 'Todos os idiomas' },
+            ...(idiomas.data ?? []).map((i) => ({ valor: String(i.id), rotulo: i.nome })),
+          ]}
+        />
         <FiltroSelect rotulo="Nível" valor={nivelF} aoMudar={(v) => mudar('nivel', v)} opcoes={opcoesNivel('Todos os níveis')} />
         {professorId && (
           <Button variant="outline" size="sm" className="mb-0.5" onClick={() => mudar('professor_id', '')}>
@@ -174,9 +239,15 @@ function Lista() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Turma</TableHead><TableHead>Idioma</TableHead><TableHead>Nível</TableHead><TableHead>Professor</TableHead>
-              <TableHead>Horário</TableHead><TableHead>Ocupação</TableHead>
-              <TableHead className="w-12"><span className="sr-only">Ações</span></TableHead>
+              <TableHead>Turma</TableHead>
+              <TableHead>Idioma</TableHead>
+              <TableHead>Nível</TableHead>
+              <TableHead>Professor</TableHead>
+              <TableHead>Horário</TableHead>
+              <TableHead>Ocupação</TableHead>
+              <TableHead className="w-12">
+                <span className="sr-only">Ações</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           {!turmas ? (
@@ -186,19 +257,33 @@ function Lista() {
               {turmas.map((t) => (
                 <TableRow key={t.id} className="cursor-pointer" onClick={() => navigate(`/turmas/${t.id}`)}>
                   <TableCell>
-                    <Link to={`/turmas/${t.id}`} className="font-medium text-primary hover:underline" onClick={(e) => e.stopPropagation()}>{t.nome}</Link>
-                    {(t.ocupacao ?? 0) >= t.capacidade && <> <StatusBadge tom="perigo">Lotada</StatusBadge></>}
+                    <Link to={`/turmas/${t.id}`} className="font-medium text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                      {t.nome}
+                    </Link>
+                    {(t.ocupacao ?? 0) >= t.capacidade && (
+                      <>
+                        {' '}
+                        <StatusBadge tom="perigo">Lotada</StatusBadge>
+                      </>
+                    )}
                   </TableCell>
-                  <TableCell><Badge variant="secondary">{t.idioma_nome}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{t.idioma_nome}</Badge>
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">{nivel(t.nivel)}</TableCell>
                   <TableCell>{t.professor_nome ?? <span className="text-muted-foreground">Não definido</span>}</TableCell>
                   <TableCell>{ou(t.horario)}</TableCell>
-                  <TableCell><Ocupacao ocupacao={t.ocupacao} capacidade={t.capacidade} /></TableCell>
+                  <TableCell>
+                    <Ocupacao ocupacao={t.ocupacao} capacidade={t.capacidade} />
+                  </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <MenuAcoes item={t.nome} acoes={[
-                      { rotulo: 'Ver alunos e materiais', icone: Eye, aoClicar: () => navigate(`/turmas/${t.id}`) },
-                      { rotulo: 'Editar turma', icone: Pencil, aoClicar: () => setEditando(t) },
-                    ]} />
+                    <MenuAcoes
+                      item={t.nome}
+                      acoes={[
+                        { rotulo: 'Ver alunos e materiais', icone: Eye, aoClicar: () => navigate(`/turmas/${t.id}`) },
+                        { rotulo: 'Editar turma', icone: Pencil, aoClicar: () => setEditando(t) },
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -212,7 +297,10 @@ function Lista() {
           turma={editando === 'nova' ? null : editando}
           padrao={{ ano: Number(ano), idioma_id: Number(idiomaId) || undefined }}
           aoFechar={() => setEditando(null)}
-          aoSalvar={(t) => { if (String(t.ano_letivo) !== ano) mudar('ano', String(t.ano_letivo)); lista.reload(); }}
+          aoSalvar={(t) => {
+            if (String(t.ano_letivo) !== ano) mudar('ano', String(t.ano_letivo));
+            lista.reload();
+          }}
         />
       )}
     </>
@@ -240,12 +328,27 @@ function Detalhe({ id }: { id: number }) {
   const turma = q.data;
 
   const voltar = (
-    <Link to={turma ? `/turmas?ano=${turma.ano_letivo}` : '/turmas'} className="mb-4 inline-flex h-9 items-center gap-1 text-primary hover:underline">
+    <Link
+      to={turma ? `/turmas?ano=${turma.ano_letivo}` : '/turmas'}
+      className="mb-4 inline-flex h-9 items-center gap-1 text-primary hover:underline"
+    >
       <ArrowLeft className="size-4" aria-hidden="true" /> {turma ? `Voltar para turmas de ${turma.ano_letivo}` : 'Voltar para turmas'}
     </Link>
   );
-  if (q.error && !turma) return <>{voltar}<EstadoErro erro={q.error} aoRecarregar={q.reload} /></>;
-  if (!turma) return <>{voltar}<Skeleton className="h-40 w-full" /></>;
+  if (q.error && !turma)
+    return (
+      <>
+        {voltar}
+        <EstadoErro erro={q.error} aoRecarregar={q.reload} />
+      </>
+    );
+  if (!turma)
+    return (
+      <>
+        {voltar}
+        <Skeleton className="h-40 w-full" />
+      </>
+    );
 
   const alunos = turma.alunos ?? [];
   const livres = Math.max(0, turma.capacidade - (turma.ocupacao ?? alunos.length));
@@ -266,9 +369,19 @@ function Detalhe({ id }: { id: number }) {
     <>
       {voltar}
       <PageHeader title={turma.nome} description={`${turma.idioma_nome} · ${nivel(turma.nivel)} · Ano letivo ${turma.ano_letivo}`}>
-        <Button variant="outline" onClick={() => setApagar(true)}><Trash2 /> Apagar turma</Button>
-        <Button variant="outline" onClick={() => setEditando(true)}><Pencil /> Editar turma</Button>
-        {livres > 0 && turma.ano_letivo >= anoAtual() && <Button asChild><Link to={`/matriculas?aba=nova&turma_id=${turma.id}`}><Plus /> Matricular aluno</Link></Button>}
+        <Button variant="outline" onClick={() => setApagar(true)}>
+          <Trash2 /> Apagar turma
+        </Button>
+        <Button variant="outline" onClick={() => setEditando(true)}>
+          <Pencil /> Editar turma
+        </Button>
+        {livres > 0 && turma.ano_letivo >= anoAtual() && (
+          <Button asChild>
+            <Link to={`/matriculas?aba=nova&turma_id=${turma.id}`}>
+              <Plus /> Matricular aluno
+            </Link>
+          </Button>
+        )}
       </PageHeader>
 
       <dl className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -277,57 +390,109 @@ function Detalhe({ id }: { id: number }) {
         <Dado rotulo="Faixa QECR">{cefr(turma.nivel)}</Dado>
         <Dado rotulo="Ocupação">
           <Ocupacao ocupacao={turma.ocupacao} capacidade={turma.capacidade} />
-          <span className="text-xs text-muted-foreground">{turma.ano_letivo < anoAtual() ? 'Ano letivo encerrado' : livres ? `${livres} vaga(s) livre(s)` : 'Turma lotada'}</span>
+          <span className="text-xs text-muted-foreground">
+            {turma.ano_letivo < anoAtual() ? 'Ano letivo encerrado' : livres ? `${livres} vaga(s) livre(s)` : 'Turma lotada'}
+          </span>
         </Dado>
       </dl>
 
       <div className="grid gap-8 lg:grid-cols-2">
         <section aria-labelledby="h-alunos">
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 id="h-alunos" className="text-base font-semibold">Alunos ({alunos.length} ativo{alunos.length === 1 ? '' : 's'})</h2>
-            <Link to={`/matriculas?ano=${turma.ano_letivo}`} className="text-primary hover:underline">Matrículas</Link>
+            <h2 id="h-alunos" className="text-base font-semibold">
+              Alunos ({alunos.length} ativo{alunos.length === 1 ? '' : 's'})
+            </h2>
+            <Link to={`/matriculas?ano=${turma.ano_letivo}`} className="text-primary hover:underline">
+              Matrículas
+            </Link>
           </div>
           {matr.data ? (
             matr.data.length ? (
               <ul className="divide-y rounded-xl border">
-                {[...matr.data].sort((a, b) => ordem[a.status] - ordem[b.status] || String(a.aluno_nome).localeCompare(String(b.aluno_nome))).map((m) => (
-                  <li key={m.id} className="flex items-center justify-between gap-2 px-4 py-2">
-                    <Link to={`/alunos/${m.aluno_id}`} className="text-primary hover:underline">{m.aluno_nome}</Link>
-                    <StatusMatricula status={m.status} />
-                  </li>
-                ))}
+                {[...matr.data]
+                  .sort((a, b) => ordem[a.status] - ordem[b.status] || String(a.aluno_nome).localeCompare(String(b.aluno_nome)))
+                  .map((m) => (
+                    <li key={m.id} className="flex items-center justify-between gap-2 px-4 py-2">
+                      <Link to={`/alunos/${m.aluno_id}`} className="text-primary hover:underline">
+                        {m.aluno_nome}
+                      </Link>
+                      <StatusMatricula status={m.status} />
+                    </li>
+                  ))}
               </ul>
-            ) : <EstadoVazio titulo="Nenhuma matrícula nesta turma" />
+            ) : (
+              <EstadoVazio titulo="Nenhuma matrícula nesta turma" />
+            )
           ) : alunos.length ? (
-            <ul className="divide-y rounded-xl border">{alunos.map((a) => <li key={a.id} className="px-4 py-2"><Link to={`/alunos/${a.id}`} className="text-primary hover:underline">{a.nome}</Link></li>)}</ul>
-          ) : <EstadoVazio titulo="Nenhum aluno com matrícula ativa nesta turma" />}
+            <ul className="divide-y rounded-xl border">
+              {alunos.map((a) => (
+                <li key={a.id} className="px-4 py-2">
+                  <Link to={`/alunos/${a.id}`} className="text-primary hover:underline">
+                    {a.nome}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EstadoVazio titulo="Nenhum aluno com matrícula ativa nesta turma" />
+          )}
         </section>
 
         <section aria-labelledby="h-mat">
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 id="h-mat" className="text-base font-semibold">Materiais didáticos</h2>
-            <Link to={`/materiais?idioma_id=${turma.idioma_id}&nivel=${turma.nivel}`} className="text-primary hover:underline">Gerenciar materiais</Link>
+            <h2 id="h-mat" className="text-base font-semibold">
+              Materiais didáticos
+            </h2>
+            <Link to={`/materiais?idioma_id=${turma.idioma_id}&nivel=${turma.nivel}`} className="text-primary hover:underline">
+              Gerenciar materiais
+            </Link>
           </div>
-          {mats.error ? <EstadoErro erro={mats.error} aoRecarregar={mats.reload} titulo="Não foi possível carregar os materiais." />
-            : !mats.data ? <Skeleton className="h-24 w-full" />
-            : mats.data.length === 0 ? <EstadoVazio titulo={`Nenhum material para ${turma.idioma_nome ?? 'este idioma'} no ${nivel(turma.nivel)}`} />
-            : (
-              <ul className="divide-y rounded-xl border">
-                {mats.data.map((m) => (
-                  <li key={m.id} className="flex gap-3 px-4 py-2">
-                    <Badge variant="secondary" className="h-fit">{TIPO_MATERIAL[m.tipo] ?? m.tipo}</Badge>
-                    <div>
-                      <span className="font-medium">{m.titulo}</span>{m.autor && <span className="text-muted-foreground"> · {m.autor}</span>}
-                      {m.referencia && <div className="text-xs">{/^https?:\/\//i.test(m.referencia) ? <a href={m.referencia} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{m.referencia}</a> : m.referencia}</div>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+          {mats.error ? (
+            <EstadoErro erro={mats.error} aoRecarregar={mats.reload} titulo="Não foi possível carregar os materiais." />
+          ) : !mats.data ? (
+            <Skeleton className="h-24 w-full" />
+          ) : mats.data.length === 0 ? (
+            <EstadoVazio titulo={`Nenhum material para ${turma.idioma_nome ?? 'este idioma'} no ${nivel(turma.nivel)}`} />
+          ) : (
+            <ul className="divide-y rounded-xl border">
+              {mats.data.map((m) => (
+                <li key={m.id} className="flex gap-3 px-4 py-2">
+                  <Badge variant="secondary" className="h-fit">
+                    {TIPO_MATERIAL[m.tipo] ?? m.tipo}
+                  </Badge>
+                  <div>
+                    <span className="font-medium">{m.titulo}</span>
+                    {m.autor && <span className="text-muted-foreground"> · {m.autor}</span>}
+                    {m.referencia && (
+                      <div className="text-xs">
+                        {/^https?:\/\//i.test(m.referencia) ? (
+                          <a href={m.referencia} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            {m.referencia}
+                          </a>
+                        ) : (
+                          m.referencia
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
 
-      {editando && <AbrirFormTurma turma={turma} padrao={{}} aoFechar={() => setEditando(false)} aoSalvar={() => { q.reload(); matr.reload(); }} />}
+      {editando && (
+        <AbrirFormTurma
+          turma={turma}
+          padrao={{}}
+          aoFechar={() => setEditando(false)}
+          aoSalvar={() => {
+            q.reload();
+            matr.reload();
+          }}
+        />
+      )}
       <ConfirmarApagar
         alvo={apagar ? { nome: turma.nome, tipo: 'turma', aviso: 'Só é possível se ela não tiver matrículas nem avaliações.' } : null}
         aoCancelar={() => setApagar(false)}

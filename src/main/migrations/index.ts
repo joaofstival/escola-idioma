@@ -4,7 +4,11 @@ import type { DatabaseSync } from 'node:sqlite';
 import { existsSync, renameSync, rmSync } from 'node:fs';
 import { migration001 } from './001-schema-inicial.ts';
 
-export interface Migration { versao: number; nome: string; sql: string }
+export interface Migration {
+  versao: number;
+  nome: string;
+  sql: string;
+}
 
 /** Ordem importa: versões sequenciais a partir de 1. Nunca edite uma migration já liberada; crie a próxima. */
 export const MIGRATIONS: Migration[] = [migration001];
@@ -15,7 +19,7 @@ function versaoDoBanco(raw: DatabaseSync): number {
 }
 
 function temTabelas(raw: DatabaseSync): boolean {
-  return raw.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").get()!.n as number > 0;
+  return (raw.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").get()!.n as number) > 0;
 }
 
 /** Cópia consistente (VACUUM INTO, vale com WAL) sem sobrescrever uma cópia anterior. */
@@ -37,7 +41,9 @@ export function verificarVersao(raw: DatabaseSync, migrations: Migration[] = MIG
   const ultima = migrations[migrations.length - 1].versao;
   const atual = versaoDoBanco(raw);
   if (atual > ultima) {
-    throw new Error(`Este banco foi criado por uma versão mais nova do app (versão ${atual}; este app entende até a ${ultima}). Atualize o app; nada foi alterado.`);
+    throw new Error(
+      `Este banco foi criado por uma versão mais nova do app (versão ${atual}; este app entende até a ${ultima}). Atualize o app; nada foi alterado.`,
+    );
   }
 }
 
@@ -62,7 +68,11 @@ export function aplicarMigrations(raw: DatabaseSync, file: string | null, migrat
       raw.exec(`PRAGMA user_version = ${m.versao}`);
       raw.exec('COMMIT');
     } catch (err) {
-      try { raw.exec('ROLLBACK'); } catch { /* sem transação aberta */ }
+      try {
+        raw.exec('ROLLBACK');
+      } catch {
+        /* sem transação aberta */
+      }
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(`Migration ${m.versao} (${m.nome}) falhou: ${msg}. O banco ficou na versão ${m.versao - 1}.`);
     }

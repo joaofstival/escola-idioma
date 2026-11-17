@@ -8,8 +8,15 @@ import { cancelarMatricula, matricular, rematricular } from './routes/matriculas
 import { pagarMensalidade } from './routes/mensalidades.ts';
 
 /** `data`: MM-DD dentro do ano da turma (limitada ao "hoje" da seed). */
-export interface MatriculaSeed { aluno: string; turma: string; data: string }
-export interface RematriculaSeed { aluno: string; turma: string }
+export interface MatriculaSeed {
+  aluno: string;
+  turma: string;
+  data: string;
+}
+export interface RematriculaSeed {
+  aluno: string;
+  turma: string;
+}
 
 export const MATRICULAS_ANTERIOR: MatriculaSeed[] = [
   { aluno: 'Ana Beatriz Souza', turma: 'Inglês 1 - Manhã', data: '02-02' },
@@ -65,29 +72,150 @@ export const CANCELAMENTOS: { aluno: string; turma: string }[] = [{ aluno: 'Paul
 
 const FORMAS = ['pix', 'boleto', 'cartao_credito', 'dinheiro', 'transferencia', 'cartao_debito'];
 
-export interface MaterialSeed { titulo: string; tipo: MaterialTipo; idioma: string; nivel: number; autor?: string; referencia?: string; descricao?: string }
+export interface MaterialSeed {
+  titulo: string;
+  tipo: MaterialTipo;
+  idioma: string;
+  nivel: number;
+  autor?: string;
+  referencia?: string;
+  descricao?: string;
+}
 
 export const MATERIAIS: MaterialSeed[] = [
-  { titulo: 'English File Beginner', tipo: 'livro', idioma: 'Inglês', nivel: 1, autor: 'Christina Latham-Koenig, Clive Oxenden', referencia: 'Oxford University Press, 4ª ed.', descricao: 'Livro do aluno + workbook (A1).' },
-  { titulo: 'English File Elementary', tipo: 'livro', idioma: 'Inglês', nivel: 2, autor: 'Christina Latham-Koenig, Clive Oxenden', referencia: 'Oxford University Press, 4ª ed.' },
-  { titulo: 'Apostila de Phrasal Verbs', tipo: 'apostila', idioma: 'Inglês', nivel: 3, autor: 'Coordenação pedagógica', descricao: 'Exercícios de fixação com 150 phrasal verbs frequentes.' },
-  { titulo: 'BBC Learning English: 6 Minute English', tipo: 'audio', idioma: 'Inglês', nivel: 4, referencia: 'https://www.bbc.co.uk/learningenglish/english/features/6-minute-english', descricao: 'Podcast semanal para compreensão auditiva.' },
-  { titulo: 'English Grammar in Use', tipo: 'livro', idioma: 'Inglês', nivel: 5, autor: 'Raymond Murphy', referencia: 'Cambridge University Press, 5ª ed.' },
-  { titulo: 'Aula Internacional Plus 1', tipo: 'livro', idioma: 'Espanhol', nivel: 1, autor: 'Jaime Corpas, Eva García, Agustín Garmendia', referencia: 'Difusión' },
-  { titulo: 'Aula Internacional Plus 2', tipo: 'livro', idioma: 'Espanhol', nivel: 2, autor: 'Jaime Corpas, Eva García, Agustín Garmendia', referencia: 'Difusión' },
+  {
+    titulo: 'English File Beginner',
+    tipo: 'livro',
+    idioma: 'Inglês',
+    nivel: 1,
+    autor: 'Christina Latham-Koenig, Clive Oxenden',
+    referencia: 'Oxford University Press, 4ª ed.',
+    descricao: 'Livro do aluno + workbook (A1).',
+  },
+  {
+    titulo: 'English File Elementary',
+    tipo: 'livro',
+    idioma: 'Inglês',
+    nivel: 2,
+    autor: 'Christina Latham-Koenig, Clive Oxenden',
+    referencia: 'Oxford University Press, 4ª ed.',
+  },
+  {
+    titulo: 'Apostila de Phrasal Verbs',
+    tipo: 'apostila',
+    idioma: 'Inglês',
+    nivel: 3,
+    autor: 'Coordenação pedagógica',
+    descricao: 'Exercícios de fixação com 150 phrasal verbs frequentes.',
+  },
+  {
+    titulo: 'BBC Learning English: 6 Minute English',
+    tipo: 'audio',
+    idioma: 'Inglês',
+    nivel: 4,
+    referencia: 'https://www.bbc.co.uk/learningenglish/english/features/6-minute-english',
+    descricao: 'Podcast semanal para compreensão auditiva.',
+  },
+  {
+    titulo: 'English Grammar in Use',
+    tipo: 'livro',
+    idioma: 'Inglês',
+    nivel: 5,
+    autor: 'Raymond Murphy',
+    referencia: 'Cambridge University Press, 5ª ed.',
+  },
+  {
+    titulo: 'Aula Internacional Plus 1',
+    tipo: 'livro',
+    idioma: 'Espanhol',
+    nivel: 1,
+    autor: 'Jaime Corpas, Eva García, Agustín Garmendia',
+    referencia: 'Difusión',
+  },
+  {
+    titulo: 'Aula Internacional Plus 2',
+    tipo: 'livro',
+    idioma: 'Espanhol',
+    nivel: 2,
+    autor: 'Jaime Corpas, Eva García, Agustín Garmendia',
+    referencia: 'Difusión',
+  },
   { titulo: 'Verbos irregulares em espanhol', tipo: 'apostila', idioma: 'Espanhol', nivel: 2, autor: 'Coordenação pedagógica' },
-  { titulo: 'Notícias em espanhol lento', tipo: 'link', idioma: 'Espanhol', nivel: 3, referencia: 'https://www.newsinslowspanish.com', descricao: 'Notícias narradas em velocidade reduzida.' },
+  {
+    titulo: 'Notícias em espanhol lento',
+    tipo: 'link',
+    idioma: 'Espanhol',
+    nivel: 3,
+    referencia: 'https://www.newsinslowspanish.com',
+    descricao: 'Notícias narradas em velocidade reduzida.',
+  },
   { titulo: 'Alter Ego+ 1', tipo: 'livro', idioma: 'Francês', nivel: 1, autor: 'Annie Berthet et al.', referencia: 'Hachette FLE' },
   { titulo: 'Alter Ego+ 2', tipo: 'livro', idioma: 'Francês', nivel: 2, autor: 'Annie Berthet et al.', referencia: 'Hachette FLE' },
-  { titulo: 'Journal en français facile (RFI)', tipo: 'audio', idioma: 'Francês', nivel: 3, referencia: 'https://francaisfacile.rfi.fr', descricao: 'Jornal diário de 10 minutos em francês simples.' },
-  { titulo: 'Menschen A1.1', tipo: 'livro', idioma: 'Alemão', nivel: 1, autor: 'Sandra Evans, Angela Pude, Franz Specht', referencia: 'Hueber' },
-  { titulo: 'Menschen A1.2', tipo: 'livro', idioma: 'Alemão', nivel: 2, autor: 'Sandra Evans, Angela Pude, Franz Specht', referencia: 'Hueber' },
-  { titulo: 'Nicos Weg (DW)', tipo: 'video', idioma: 'Alemão', nivel: 1, referencia: 'https://learngerman.dw.com', descricao: 'Série em vídeo do A1 ao B1.' },
+  {
+    titulo: 'Journal en français facile (RFI)',
+    tipo: 'audio',
+    idioma: 'Francês',
+    nivel: 3,
+    referencia: 'https://francaisfacile.rfi.fr',
+    descricao: 'Jornal diário de 10 minutos em francês simples.',
+  },
+  {
+    titulo: 'Menschen A1.1',
+    tipo: 'livro',
+    idioma: 'Alemão',
+    nivel: 1,
+    autor: 'Sandra Evans, Angela Pude, Franz Specht',
+    referencia: 'Hueber',
+  },
+  {
+    titulo: 'Menschen A1.2',
+    tipo: 'livro',
+    idioma: 'Alemão',
+    nivel: 2,
+    autor: 'Sandra Evans, Angela Pude, Franz Specht',
+    referencia: 'Hueber',
+  },
+  {
+    titulo: 'Nicos Weg (DW)',
+    tipo: 'video',
+    idioma: 'Alemão',
+    nivel: 1,
+    referencia: 'https://learngerman.dw.com',
+    descricao: 'Série em vídeo do A1 ao B1.',
+  },
   { titulo: 'Tabela de declinações', tipo: 'apostila', idioma: 'Alemão', nivel: 3, autor: 'Hans Becker' },
-  { titulo: 'Nuovo Espresso 1', tipo: 'livro', idioma: 'Italiano', nivel: 1, autor: 'Luciana Ziglio, Giovanna Rizzo', referencia: 'Alma Edizioni' },
-  { titulo: 'Nuovo Espresso 2', tipo: 'livro', idioma: 'Italiano', nivel: 2, autor: 'Maria Balì, Giovanna Rizzo', referencia: 'Alma Edizioni' },
-  { titulo: 'Canzoni italiane per la classe', tipo: 'audio', idioma: 'Italiano', nivel: 2, autor: 'Giulia Romano', descricao: 'Seleção de músicas com letras e atividades.' },
-  { titulo: 'Cartões de vocabulário', tipo: 'outro', idioma: 'Italiano', nivel: 1, autor: 'Coordenação pedagógica', descricao: 'Flashcards impressos (cores, números, família).' },
+  {
+    titulo: 'Nuovo Espresso 1',
+    tipo: 'livro',
+    idioma: 'Italiano',
+    nivel: 1,
+    autor: 'Luciana Ziglio, Giovanna Rizzo',
+    referencia: 'Alma Edizioni',
+  },
+  {
+    titulo: 'Nuovo Espresso 2',
+    tipo: 'livro',
+    idioma: 'Italiano',
+    nivel: 2,
+    autor: 'Maria Balì, Giovanna Rizzo',
+    referencia: 'Alma Edizioni',
+  },
+  {
+    titulo: 'Canzoni italiane per la classe',
+    tipo: 'audio',
+    idioma: 'Italiano',
+    nivel: 2,
+    autor: 'Giulia Romano',
+    descricao: 'Seleção de músicas com letras e atividades.',
+  },
+  {
+    titulo: 'Cartões de vocabulário',
+    tipo: 'outro',
+    idioma: 'Italiano',
+    nivel: 1,
+    autor: 'Coordenação pedagógica',
+    descricao: 'Flashcards impressos (cores, números, família).',
+  },
 ];
 
 /** "Hoje" da seed, preso ao ano atual da seed (útil quando os testes passam anoAtual diferente do relógio). */
@@ -110,12 +238,16 @@ function pagarVencidas(db: Db, ctx: SeedContexto, ano: number, deixarAbertas: Re
   const ms = db.all<{ id: number; aluno_id: number; matricula_id: number; vencimento: string }>(
     `SELECT id, aluno_id, matricula_id, vencimento FROM mensalidades
      WHERE status = 'pendente' AND vencimento < ? AND substr(competencia, 1, 4) = ? ORDER BY aluno_id, vencimento DESC`,
-    [hojeRef, String(ano)]);
+    [hojeRef, String(ano)],
+  );
   const abertas = new Map<number, number>();
   for (const m of ms) {
     const limite = abertasPorAluno.get(m.aluno_id) ?? 0;
     const ja = abertas.get(m.aluno_id) ?? 0;
-    if (ja < limite) { abertas.set(m.aluno_id, ja + 1); continue; }
+    if (ja < limite) {
+      abertas.set(m.aluno_id, ja + 1);
+      continue;
+    }
     // Alguns pagamentos com atraso (valor atualizado com multa e juros), os demais em dia.
     const atrasado = m.id % 5 === 0 && somarDias(m.vencimento, 4) <= hojeRef;
     const data = atrasado ? somarDias(m.vencimento, 4) : somarDias(m.vencimento, -(m.id % 4));
@@ -129,7 +261,10 @@ export function seedMatriculas(db: Db, ctx: SeedContexto): void {
   const h = hojeDaSeed(ano);
   const turma = (a: number, nome: string) => idDe(ctx.turmas, `${a}|${nome}`);
   const aluno = (nome: string) => idDe(ctx.alunos, nome);
-  const dataNoAno = (a: number, mmdd: string) => { const d = `${a}-${mmdd}`; return d > h ? h : d; };
+  const dataNoAno = (a: number, mmdd: string) => {
+    const d = `${a}-${mmdd}`;
+    return d > h ? h : d;
+  };
 
   // Ano anterior: matrículas, pagamentos (com a dívida do Mateo) e rematrículas.
   for (const m of MATRICULAS_ANTERIOR) {
@@ -147,15 +282,24 @@ export function seedMatriculas(db: Db, ctx: SeedContexto): void {
   }
   pagarVencidas(db, ctx, ano, ATRASOS_ATUAL, h);
   for (const c of CANCELAMENTOS) {
-    const id = db.get<{ id: number }>('SELECT id FROM matriculas WHERE aluno_id = ? AND turma_id = ?', [aluno(c.aluno), turma(ano, c.turma)])!.id;
+    const id = db.get<{ id: number }>('SELECT id FROM matriculas WHERE aluno_id = ? AND turma_id = ?', [
+      aluno(c.aluno),
+      turma(ano, c.turma),
+    ])!.id;
     cancelarMatricula(db, id, h);
   }
 }
 
 export function seedMateriais(db: Db, ctx: SeedContexto): void {
   for (const m of MATERIAIS) {
-    db.run(
-      'INSERT INTO materiais (titulo, tipo, idioma_id, nivel, autor, referencia, descricao) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [m.titulo, m.tipo, idDe(ctx.idiomas, m.idioma), m.nivel, m.autor ?? null, m.referencia ?? null, m.descricao ?? null]);
+    db.run('INSERT INTO materiais (titulo, tipo, idioma_id, nivel, autor, referencia, descricao) VALUES (?, ?, ?, ?, ?, ?, ?)', [
+      m.titulo,
+      m.tipo,
+      idDe(ctx.idiomas, m.idioma),
+      m.nivel,
+      m.autor ?? null,
+      m.referencia ?? null,
+      m.descricao ?? null,
+    ]);
   }
 }

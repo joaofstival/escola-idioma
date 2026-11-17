@@ -27,7 +27,10 @@ async function cenario() {
 test('CRUD de avaliações, modelos prontos e criação a partir de modelo', async () => {
   const { api, turma, outra } = await cenario();
   const modelos = await api.ok('GET', '/avaliacoes/modelos');
-  assert.deepEqual(modelos.map((m: any) => m.id), ['padrao', 'nivel', 'feedback', 'autoavaliacao']);
+  assert.deepEqual(
+    modelos.map((m: any) => m.id),
+    ['padrao', 'nivel', 'feedback', 'autoavaliacao'],
+  );
 
   const a = await api.ok('POST', '/avaliacoes', { turma_id: turma.id, titulo: 'Avaliação 1', form: FORM }, 201);
   assert.equal(a.turma_nome, 'EN1');
@@ -40,7 +43,10 @@ test('CRUD de avaliações, modelos prontos e criação a partir de modelo', asy
   assert.equal(m.form.questions[0].rows.length, 6);
 
   assert.equal((await api.ok('GET', '/avaliacoes')).length, 2);
-  assert.deepEqual((await api.ok('GET', `/avaliacoes?turma_id=${turma.id}`)).map((x: any) => x.id), [a.id]);
+  assert.deepEqual(
+    (await api.ok('GET', `/avaliacoes?turma_id=${turma.id}`)).map((x: any) => x.id),
+    [a.id],
+  );
   const u = await api.ok('PUT', `/avaliacoes/${a.id}`, { descricao: 'Fim de semestre', form: { questions: [FORM.questions[0]] } });
   assert.equal(u.descricao, 'Fim de semestre');
   assert.equal(u.form.questions.length, 1, 'sem respostas o form pode mudar');
@@ -57,37 +63,94 @@ test('CRUD de avaliações, modelos prontos e criação a partir de modelo', asy
 });
 
 test('respostas: matrícula ativa, uma por aluno, validação 422, itens gravados e nota', async () => {
-  const { api, turma, alunos: [ana, bruno, carla] } = await cenario();
+  const {
+    api,
+    turma,
+    alunos: [ana, bruno, carla],
+  } = await cenario();
   const a = await api.ok('POST', '/avaliacoes', { turma_id: turma.id, titulo: 'Avaliação', form: FORM });
-  const r = await api.ok('POST', `/avaliacoes/${a.id}/respostas`, {
-    aluno_id: ana.id, answers: [{ question_id: 'nota', value_number: 10 }, { question_id: 'coment', value_text: 'Ótimo' }],
-  }, 201);
+  const r = await api.ok(
+    'POST',
+    `/avaliacoes/${a.id}/respostas`,
+    {
+      aluno_id: ana.id,
+      answers: [
+        { question_id: 'nota', value_number: 10 },
+        { question_id: 'coment', value_text: 'Ótimo' },
+      ],
+    },
+    201,
+  );
   assert.equal(r.aluno_nome, 'Ana');
   assert.equal(r.score, 10);
-  assert.deepEqual(r.answers, [{ question_id: 'nota', value_number: 10, reason: null }, { question_id: 'coment', value_text: 'Ótimo' }]);
+  assert.deepEqual(r.answers, [
+    { question_id: 'nota', value_number: 10, reason: null },
+    { question_id: 'coment', value_text: 'Ótimo' },
+  ]);
   assert.equal(api.db.get<any>('SELECT count(*) AS n FROM avaliacao_resposta_itens').n, 2);
 
-  assert.match((await api.falha('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: ana.id, answers: [{ question_id: 'nota', value_number: 5 }] }, 422)).erro, /já respondeu/);
-  const inv = await api.falha('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: bruno.id, answers: [{ question_id: 'nota', value_number: 11 }] }, 422);
+  assert.match(
+    (
+      await api.falha(
+        'POST',
+        `/avaliacoes/${a.id}/respostas`,
+        { aluno_id: ana.id, answers: [{ question_id: 'nota', value_number: 5 }] },
+        422,
+      )
+    ).erro,
+    /já respondeu/,
+  );
+  const inv = await api.falha(
+    'POST',
+    `/avaliacoes/${a.id}/respostas`,
+    { aluno_id: bruno.id, answers: [{ question_id: 'nota', value_number: 11 }] },
+    422,
+  );
   assert.equal(inv.erro, 'Respostas inválidas');
   assert.match(inv.detalhes![0], /de 1 a 10/);
   await api.falha('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: bruno.id, answers: [] }, 422);
 
   const fora = await api.ok('POST', '/alunos', { nome: 'Fora' });
-  assert.match((await api.falha('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: fora.id, answers: [{ question_id: 'nota', value_number: 5 }] }, 422)).detalhes![0], /matrícula ativa/);
+  assert.match(
+    (
+      await api.falha(
+        'POST',
+        `/avaliacoes/${a.id}/respostas`,
+        { aluno_id: fora.id, answers: [{ question_id: 'nota', value_number: 5 }] },
+        422,
+      )
+    ).detalhes![0],
+    /matrícula ativa/,
+  );
   const mCarla = api.db.get<any>('SELECT id FROM matriculas WHERE aluno_id = ?', [carla.id]);
   await api.ok('PUT', `/matriculas/${mCarla.id}/cancelar`);
-  await api.falha('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: carla.id, answers: [{ question_id: 'nota', value_number: 5 }] }, 422);
+  await api.falha(
+    'POST',
+    `/avaliacoes/${a.id}/respostas`,
+    { aluno_id: carla.id, answers: [{ question_id: 'nota', value_number: 5 }] },
+    422,
+  );
   await api.falha('POST', `/avaliacoes/${a.id}/respostas`, { answers: [] }, 422);
   await api.falha('POST', '/avaliacoes/999/respostas', { aluno_id: ana.id, answers: [] }, 404);
 
   await api.ok('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: bruno.id, answers: [{ question_id: 'nota', value_number: 4 }] });
   const lista = await api.ok('GET', `/avaliacoes/${a.id}/respostas`);
-  assert.deepEqual(lista.map((x: any) => [x.aluno_nome, x.score]), [['Ana', 10], ['Bruno', 3.33]]);
+  assert.deepEqual(
+    lista.map((x: any) => [x.aluno_nome, x.score]),
+    [
+      ['Ana', 10],
+      ['Bruno', 3.33],
+    ],
+  );
 });
 
 test('trava após a 1ª resposta: form e turma não mudam (422), título/descrição sim; DELETE 422; duplicar libera', async () => {
-  const { api, turma, outra, alunos: [ana] } = await cenario();
+  const {
+    api,
+    turma,
+    outra,
+    alunos: [ana],
+  } = await cenario();
   const a = await api.ok('POST', '/avaliacoes', { turma_id: turma.id, titulo: 'Original', form: FORM });
   await api.ok('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: ana.id, answers: [{ question_id: 'nota', value_number: 8 }] });
   const travada = await api.ok('GET', `/avaliacoes/${a.id}`);
@@ -114,14 +177,22 @@ test('trava após a 1ª resposta: form e turma não mudam (422), título/descri�
 });
 
 test('resultados e exportação CSV com o modelo de nível (grade de competências)', async () => {
-  const { api, turma, alunos: [ana, bruno] } = await cenario();
+  const {
+    api,
+    turma,
+    alunos: [ana, bruno],
+  } = await cenario();
   const a = await api.ok('POST', '/avaliacoes', { turma_id: turma.id, titulo: 'Nível; 2026', modelo_id: 'nivel' });
   const competencias = a.form.questions[0].rows.map((r: any) => r.id);
   const resp = (nota: string, recomendacao: string, extra: any[] = []) => [
     ...competencias.map((row_id: string) => ({ question_id: 'competencias', row_id, option_id: nota })),
-    { question_id: 'recomendacao', option_id: recomendacao, reason: 'Precisa revisar "past tense"' }, ...extra,
+    { question_id: 'recomendacao', option_id: recomendacao, reason: 'Precisa revisar "past tense"' },
+    ...extra,
   ];
-  const r1 = await api.ok('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: ana.id, answers: resp('excelente', 'avancar', [{ question_id: 'observacoes', value_text: 'Ótima\naluna' }]) });
+  const r1 = await api.ok('POST', `/avaliacoes/${a.id}/respostas`, {
+    aluno_id: ana.id,
+    answers: resp('excelente', 'avancar', [{ question_id: 'observacoes', value_text: 'Ótima\naluna' }]),
+  });
   assert.equal(r1.score, 10);
   assert.equal(r1.answers.find((x: any) => x.question_id === 'recomendacao').reason, null, 'porquê só quando pedido (repetir)');
   const r2 = await api.ok('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: bruno.id, answers: resp('regular', 'repetir') });
@@ -129,14 +200,25 @@ test('resultados e exportação CSV com o modelo de nível (grade de competênci
   const semPorque = resp('bom', 'repetir').map((x: any) => (x.question_id === 'recomendacao' ? { ...x, reason: '' } : x));
   const c = await api.ok('POST', '/alunos', { nome: 'Caio' });
   await api.ok('POST', '/matriculas', { aluno_id: c.id, turma_id: turma.id, data: '2026-02-01' });
-  assert.match((await api.falha('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: c.id, answers: semPorque }, 422)).detalhes!.join(), /porquê/);
+  assert.match(
+    (await api.falha('POST', `/avaliacoes/${a.id}/respostas`, { aluno_id: c.id, answers: semPorque }, 422)).detalhes!.join(),
+    /porquê/,
+  );
 
   const res = await api.ok('GET', `/avaliacoes/${a.id}/resultados`);
   assert.equal(res.total_respostas, 2);
   assert.equal(res.nota_media, 7.5);
   const grade = res.perguntas[0];
   assert.equal(grade.linhas.length, 6);
-  assert.deepEqual(grade.linhas[0].opcoes.map((o: any) => [o.option_id, o.count, o.percent]), [['excelente', 1, 50], ['bom', 0, 0], ['regular', 1, 50], ['precisa_melhorar', 0, 0]]);
+  assert.deepEqual(
+    grade.linhas[0].opcoes.map((o: any) => [o.option_id, o.count, o.percent]),
+    [
+      ['excelente', 1, 50],
+      ['bom', 0, 0],
+      ['regular', 1, 50],
+      ['precisa_melhorar', 0, 0],
+    ],
+  );
   assert.equal(grade.linhas[0].media, 7.5);
   const rec = res.perguntas[1];
   assert.equal(rec.com_porque, 1);

@@ -5,7 +5,13 @@ import type { Router } from '../router.ts';
 import { HttpError, ValidationError } from '../router.ts';
 import { Validador, encontrado, exigirCorpo, parseId, queryInt } from '../validation.ts';
 import {
-  MSG_TRAVADA, calcularResultados, gerarCsv, montarAnswers, nomeArquivoCsv, validarForm, validarRespostas,
+  MSG_TRAVADA,
+  calcularResultados,
+  gerarCsv,
+  montarAnswers,
+  nomeArquivoCsv,
+  validarForm,
+  validarRespostas,
 } from '../services/avaliacao.ts';
 import type { ItemResposta, RespostaComItens } from '../services/avaliacao.ts';
 import { MODELOS_AVALIACAO } from '../data/modelos-avaliacao.ts';
@@ -27,8 +33,12 @@ export function buscarAvaliacao(db: Db, id: number): Avaliacao {
 }
 
 export function listarAvaliacoes(db: Db, turmaId?: number): Avaliacao[] {
-  return db.all<Linha>(`${SELECT_AVALIACAO} ${turmaId !== undefined ? 'WHERE av.turma_id = :turma_id' : ''} ORDER BY av.criado_em DESC, av.id DESC`,
-    turmaId !== undefined ? { turma_id: turmaId } : undefined).map(converter);
+  return db
+    .all<Linha>(
+      `${SELECT_AVALIACAO} ${turmaId !== undefined ? 'WHERE av.turma_id = :turma_id' : ''} ORDER BY av.criado_em DESC, av.id DESC`,
+      turmaId !== undefined ? { turma_id: turmaId } : undefined,
+    )
+    .map(converter);
 }
 
 /** Valida turma, título, descrição e form (ou `modelo_id`, que usa o formulário de um modelo pronto). */
@@ -58,8 +68,12 @@ function validarDados(db: Db, dados: Record<string, unknown>) {
 /** Cria a avaliação (exportada para a seed). */
 export function criarAvaliacao(db: Db, dados: Record<string, unknown>): Avaliacao {
   const d = validarDados(db, dados);
-  const { lastInsertRowid } = db.run('INSERT INTO avaliacoes (turma_id, titulo, descricao, form) VALUES (?, ?, ?, ?)',
-    [d.turma_id, d.titulo, d.descricao, JSON.stringify(d.form)]);
+  const { lastInsertRowid } = db.run('INSERT INTO avaliacoes (turma_id, titulo, descricao, form) VALUES (?, ?, ?, ?)', [
+    d.turma_id,
+    d.titulo,
+    d.descricao,
+    JSON.stringify(d.form),
+  ]);
   return buscarAvaliacao(db, lastInsertRowid);
 }
 
@@ -78,8 +92,13 @@ function atualizarAvaliacao(db: Db, id: number, corpo: Record<string, unknown>):
   const merged: Record<string, unknown> = { ...base, ...corpo };
   if (corpo.modelo_id !== undefined && (corpo.form === undefined || corpo.form === null)) delete merged.form;
   const d = validarDados(db, merged);
-  db.run('UPDATE avaliacoes SET turma_id = ?, titulo = ?, descricao = ?, form = ? WHERE id = ?',
-    [d.turma_id, d.titulo, d.descricao, JSON.stringify(d.form), id]);
+  db.run('UPDATE avaliacoes SET turma_id = ?, titulo = ?, descricao = ?, form = ? WHERE id = ?', [
+    d.turma_id,
+    d.titulo,
+    d.descricao,
+    JSON.stringify(d.form),
+    id,
+  ]);
   return buscarAvaliacao(db, id);
 }
 
@@ -91,17 +110,28 @@ function duplicarAvaliacao(db: Db, id: number, corpo: Record<string, unknown>): 
 
 // ---------------------------------------------------------------- respostas
 
-interface LinhaResposta { id: number; avaliacao_id: number; aluno_id: number; aluno_nome: string; score: number | null; criado_em: string }
+interface LinhaResposta {
+  id: number;
+  avaliacao_id: number;
+  aluno_id: number;
+  aluno_nome: string;
+  score: number | null;
+  criado_em: string;
+}
 
 function carregarRespostas(db: Db, avaliacaoId: number): (LinhaResposta & { itens: ItemResposta[] })[] {
   const linhas = db.all<LinhaResposta>(
     `SELECT r.id, r.avaliacao_id, r.aluno_id, a.nome AS aluno_nome, r.score, r.criado_em
      FROM avaliacao_respostas r JOIN alunos a ON a.id = r.aluno_id
-     WHERE r.avaliacao_id = ? ORDER BY a.nome COLLATE NOCASE, r.id`, [avaliacaoId]);
+     WHERE r.avaliacao_id = ? ORDER BY a.nome COLLATE NOCASE, r.id`,
+    [avaliacaoId],
+  );
   const itens = db.all<ItemResposta & { resposta_id: number }>(
     `SELECT i.resposta_id, i.question_id, i.row_id, i.option_id, i.value_text, i.value_number, i.reason
      FROM avaliacao_resposta_itens i JOIN avaliacao_respostas r ON r.id = i.resposta_id
-     WHERE r.avaliacao_id = ? ORDER BY i.id`, [avaliacaoId]);
+     WHERE r.avaliacao_id = ? ORDER BY i.id`,
+    [avaliacaoId],
+  );
   const porResposta = new Map<number, ItemResposta[]>();
   for (const { resposta_id, ...i } of itens) {
     const l = porResposta.get(resposta_id) ?? [];
@@ -133,11 +163,17 @@ export function responderAvaliacao(db: Db, avaliacaoId: number, dados: Record<st
   const r = validarRespostas(a.form, dados.answers);
   if (r.detalhes.length) throw new ValidationError(r.detalhes, 'Respostas inválidas');
   const id = db.transaction(() => {
-    const novo = db.run('INSERT INTO avaliacao_respostas (avaliacao_id, aluno_id, score) VALUES (?, ?, ?)', [avaliacaoId, alunoId, r.score]).lastInsertRowid;
+    const novo = db.run('INSERT INTO avaliacao_respostas (avaliacao_id, aluno_id, score) VALUES (?, ?, ?)', [
+      avaliacaoId,
+      alunoId,
+      r.score,
+    ]).lastInsertRowid;
     for (const i of r.itens) {
       db.run(
         `INSERT INTO avaliacao_resposta_itens (resposta_id, question_id, row_id, option_id, value_text, value_number, reason)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`, [novo, i.question_id, i.row_id, i.option_id, i.value_text, i.value_number, i.reason]);
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [novo, i.question_id, i.row_id, i.option_id, i.value_text, i.value_number, i.reason],
+      );
     }
     return novo;
   });
@@ -168,9 +204,17 @@ export function register(router: Router, db: Db): void {
     db.run('DELETE FROM avaliacoes WHERE id = ?', [a.id]);
     return { ok: true };
   });
-  router.post('/avaliacoes/:id/duplicar', ({ params, body }) =>
-    duplicarAvaliacao(db, parseId(params.id, 'Avaliação'), body === undefined || body === null ? {} : exigirCorpo(body)), { status: 201 });
-  router.post('/avaliacoes/:id/respostas', ({ params, body }) => responderAvaliacao(db, parseId(params.id, 'Avaliação'), exigirCorpo(body)), { status: 201 });
+  router.post(
+    '/avaliacoes/:id/duplicar',
+    ({ params, body }) =>
+      duplicarAvaliacao(db, parseId(params.id, 'Avaliação'), body === undefined || body === null ? {} : exigirCorpo(body)),
+    { status: 201 },
+  );
+  router.post(
+    '/avaliacoes/:id/respostas',
+    ({ params, body }) => responderAvaliacao(db, parseId(params.id, 'Avaliação'), exigirCorpo(body)),
+    { status: 201 },
+  );
   router.get('/avaliacoes/:id/respostas', ({ params }) => listarRespostas(db, parseId(params.id, 'Avaliação')));
   router.get('/avaliacoes/:id/resultados', ({ params }) => resultadosAvaliacao(db, parseId(params.id, 'Avaliação')));
   router.get('/avaliacoes/:id/exportar', ({ params }) => exportarAvaliacao(db, parseId(params.id, 'Avaliação')));

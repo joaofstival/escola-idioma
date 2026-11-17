@@ -11,10 +11,20 @@ export const TURMA_FEEDBACK = 'Espanhol 1 - Tarde';
 
 /** Notas por competência (na ordem de COMPETENCIAS), recomendação e observação de cada aluno. */
 export const RESPOSTAS_NIVEL: { aluno: string; notas: string[]; recomendacao: string; porque?: string; obs?: string }[] = [
-  { aluno: 'João Pedro Ribeiro', notas: ['excelente', 'bom', 'excelente', 'bom', 'bom', 'excelente'], recomendacao: 'avancar', obs: 'Muito participativo; ótima pronúncia.' },
+  {
+    aluno: 'João Pedro Ribeiro',
+    notas: ['excelente', 'bom', 'excelente', 'bom', 'bom', 'excelente'],
+    recomendacao: 'avancar',
+    obs: 'Muito participativo; ótima pronúncia.',
+  },
   { aluno: 'Larissa Teixeira', notas: ['bom', 'regular', 'bom', 'bom', 'regular', 'bom'], recomendacao: 'avancar' },
-  { aluno: 'Valentina López', notas: ['regular', 'precisa_melhorar', 'regular', 'regular', 'precisa_melhorar', 'regular'], recomendacao: 'repetir',
-    porque: 'Faltou a muitas aulas no 2º semestre; precisa consolidar o vocabulário básico.', obs: 'Sugerido reforço com a monitoria.' },
+  {
+    aluno: 'Valentina López',
+    notas: ['regular', 'precisa_melhorar', 'regular', 'regular', 'precisa_melhorar', 'regular'],
+    recomendacao: 'repetir',
+    porque: 'Faltou a muitas aulas no 2º semestre; precisa consolidar o vocabulário básico.',
+    obs: 'Sugerido reforço com a monitoria.',
+  },
 ];
 
 export function seedAvaliacoes(db: Db, ctx: SeedContexto): void {
@@ -24,7 +34,9 @@ export function seedAvaliacoes(db: Db, ctx: SeedContexto): void {
   if (t1 === undefined || t2 === undefined) return;
 
   const nivel = criarAvaliacao(db, {
-    turma_id: t1, modelo_id: 'nivel', titulo: `Avaliação de nível - ${TURMA_AVALIACAO} (${ctx.anoAtual})`,
+    turma_id: t1,
+    modelo_id: 'nivel',
+    titulo: `Avaliação de nível - ${TURMA_AVALIACAO} (${ctx.anoAtual})`,
     descricao: 'Avaliação de fim de ano feita pelo professor, por competência.',
   });
   for (const r of RESPOSTAS_NIVEL) {
@@ -40,7 +52,9 @@ export function seedAvaliacoes(db: Db, ctx: SeedContexto): void {
   }
 
   criarAvaliacao(db, {
-    turma_id: t2, modelo_id: 'feedback', titulo: `Feedback da turma - ${TURMA_FEEDBACK} (${ctx.anoAtual})`,
+    turma_id: t2,
+    modelo_id: 'feedback',
+    titulo: `Feedback da turma - ${TURMA_FEEDBACK} (${ctx.anoAtual})`,
     descricao: 'Pesquisa de satisfação dos alunos (ainda sem respostas: o formulário pode ser editado).',
   });
 }

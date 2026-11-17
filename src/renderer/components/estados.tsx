@@ -5,9 +5,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TableBody, TableCell, TableRow } from '@/components/ui/table';
 
 /** Erro de carga: diz o que houve e oferece tentar de novo. */
-export function EstadoErro({ erro, aoRecarregar, titulo = 'Não foi possível carregar os dados.' }: { erro: Error; aoRecarregar?: () => void; titulo?: string }) {
+export function EstadoErro({
+  erro,
+  aoRecarregar,
+  titulo = 'Não foi possível carregar os dados.',
+}: {
+  erro: Error;
+  aoRecarregar?: () => void;
+  titulo?: string;
+}) {
   return (
-    <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-danger-deep/30 bg-danger-soft p-4 text-danger-deep">
+    <div
+      role="alert"
+      className="flex flex-col items-start gap-3 rounded-xl border border-danger-deep/30 bg-danger-soft p-4 text-danger-deep"
+    >
       <div className="flex items-center gap-2 font-medium">
         <CircleAlert className="size-4" aria-hidden="true" />
         {titulo}

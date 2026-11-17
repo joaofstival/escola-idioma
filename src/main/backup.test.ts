@@ -1,27 +1,44 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync, writeFileSync, copyFileSync, utimesSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { openDb } from './db.ts';
 import type { Db } from './db.ts';
 import {
-  criarBackup, listarBackups, aplicarRetencao, backupDiario, backupDiarioSeguro, iniciarBackupAutomatico,
-  exportarBackup, prepararRestauracao, concluirRestauracaoPendente, validarArquivoDeBackup, pastaDeBackups,
+  criarBackup,
+  listarBackups,
+  aplicarRetencao,
+  backupDiario,
+  backupDiarioSeguro,
+  iniciarBackupAutomatico,
+  exportarBackup,
+  prepararRestauracao,
+  concluirRestauracaoPendente,
+  validarArquivoDeBackup,
+  pastaDeBackups,
 } from './backup.ts';
 import { ULTIMA_VERSAO } from './migrations/index.ts';
 import { createApi } from './app.ts';
 
 async function comPasta(fn: (dir: string) => Promise<void>): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), 'escola-bkp-'));
-  try { await fn(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try {
+    await fn(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 const nomes = (db: Db) => db.all<{ nome: string }>('SELECT nome FROM alunos ORDER BY nome').map((r) => r.nome);
 function lerNomes(file: string): string[] {
   const d = new DatabaseSync(file);
-  try { return (d.prepare('SELECT nome FROM alunos ORDER BY nome').all() as { nome: string }[]).map((r) => r.nome); } finally { d.close(); }
+  try {
+    return (d.prepare('SELECT nome FROM alunos ORDER BY nome').all() as { nome: string }[]).map((r) => r.nome);
+  } finally {
+    d.close();
+  }
 }
 async function bancoCom(file: string, ...alunos: string[]): Promise<void> {
   const db = await openDb({ file });
@@ -90,14 +107,20 @@ test('rotina automática: roda ao abrir e quando o dia vira com o app aberto (re
       agora = em(18, 0, 5);
       await new Promise((r) => setTimeout(r, 120));
       assert.equal(listarBackups(pastaDeBackups(db)).length, 2, 'backup quando o dia mudou');
-    } finally { parar(); db.close(); }
+    } finally {
+      parar();
+      db.close();
+    }
   });
 });
 
 test('falha de backup não derruba: loga e devolve null', async () => {
   const db = await openDb({ file: null as never });
   const logs: string[] = [];
-  assert.equal(backupDiarioSeguro(db, '/caminho/que/nao/existe/\0', em(17), (m) => logs.push(m)), null);
+  assert.equal(
+    backupDiarioSeguro(db, '/caminho/que/nao/existe/\0', em(17), (m) => logs.push(m)),
+    null,
+  );
   assert.equal(logs.length, 1);
 });
 
@@ -112,7 +135,10 @@ test('exportar: grava cópia consistente, recusa destino existente e só sobresc
     db.run("INSERT INTO alunos (nome) VALUES ('Bia')");
     exportarBackup(db, destino, true);
     assert.deepEqual(lerNomes(destino), ['Ana', 'Bia']);
-    assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith('.tmp')), []);
+    assert.deepEqual(
+      readdirSync(dir).filter((f) => f.endsWith('.tmp')),
+      [],
+    );
     db.close();
   });
 });
@@ -157,7 +183,10 @@ test('restauração válida em duas fases: guarda o atual como pre-restauracao e
     assert.deepEqual(lerNomes(atual), ['Do backup']);
     assert.deepEqual(lerNomes(`${atual}.pre-restauracao-2026-11-17`), ['Atual']);
     assert.equal(existsSync(`${atual}.restaurar`), false);
-    assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith('-wal') || f.endsWith('-shm')), []);
+    assert.deepEqual(
+      readdirSync(dir).filter((f) => f.endsWith('-wal') || f.endsWith('-shm')),
+      [],
+    );
     assert.equal(concluirRestauracaoPendente(dir), false, 'sem pendência não faz nada');
     const db = await openDb({ file: atual });
     assert.deepEqual(nomes(db), ['Do backup']);
@@ -170,11 +199,13 @@ test('restauração com -wal antigo: dados que só estavam no WAL não se perdem
     const vivo = join(dir, 'vivo');
     const dirCrash = join(dir, 'crash');
     const { mkdirSync } = await import('node:fs');
-    mkdirSync(vivo); mkdirSync(dirCrash);
+    mkdirSync(vivo);
+    mkdirSync(dirCrash);
     const db = await openDb({ file: join(vivo, 'escola.db') });
     db.run("INSERT INTO alunos (nome) VALUES ('So no wal')");
     // "queda": fotografa arquivo + -wal + -shm com o banco ainda aberto (sem checkpoint)
-    for (const s of ['', '-wal', '-shm']) if (existsSync(join(vivo, 'escola.db' + s))) copyFileSync(join(vivo, 'escola.db' + s), join(dirCrash, 'escola.db' + s));
+    for (const s of ['', '-wal', '-shm'])
+      if (existsSync(join(vivo, 'escola.db' + s))) copyFileSync(join(vivo, 'escola.db' + s), join(dirCrash, 'escola.db' + s));
     db.close();
     assert.ok(existsSync(join(dirCrash, 'escola.db-wal')), 'cenário precisa ter -wal');
     const origem = join(dir, 'origem.db');
@@ -190,11 +221,14 @@ test('restauração com -wal antigo: dados que só estavam no WAL não se perdem
 test('restauração a partir de arquivo com -wal ao lado usa VACUUM INTO (inclui o que só estava no WAL)', async () => {
   await comPasta(async (dir) => {
     const { mkdirSync } = await import('node:fs');
-    const fonte = join(dir, 'fonte'); mkdirSync(fonte);
-    const ud = join(dir, 'ud'); mkdirSync(ud);
+    const fonte = join(dir, 'fonte');
+    mkdirSync(fonte);
+    const ud = join(dir, 'ud');
+    mkdirSync(ud);
     const db = await openDb({ file: join(fonte, 'escola.db') });
     db.run("INSERT INTO alunos (nome) VALUES ('Dentro do wal')");
-    for (const s of ['', '-wal', '-shm']) if (existsSync(join(fonte, 'escola.db' + s))) copyFileSync(join(fonte, 'escola.db' + s), join(dir, 'escolhido.db' + s));
+    for (const s of ['', '-wal', '-shm'])
+      if (existsSync(join(fonte, 'escola.db' + s))) copyFileSync(join(fonte, 'escola.db' + s), join(dir, 'escolhido.db' + s));
     db.close();
     prepararRestauracao(join(dir, 'escolhido.db'), ud);
     assert.deepEqual(lerNomes(join(ud, 'escola.db.restaurar')), ['Dentro do wal']);
@@ -232,15 +266,19 @@ test('arquivo inválido é recusado sem tocar no banco atual (lixo, vazio, vers�
     recusa('nao-existe.db', /não encontrado/);
     const futuro = join(dir, 'futuro.db');
     await bancoCom(futuro, 'F');
-    const f = new DatabaseSync(futuro); f.exec(`PRAGMA user_version = ${ULTIMA_VERSAO + 1}`); f.close();
+    const f = new DatabaseSync(futuro);
+    f.exec(`PRAGMA user_version = ${ULTIMA_VERSAO + 1}`);
+    f.close();
     recusa('futuro.db', /mais nova/);
     const semTab = join(dir, 'semtab.db');
-    const s = new DatabaseSync(semTab); s.exec(`CREATE TABLE x (a); PRAGMA user_version = 1`); s.close();
+    const s = new DatabaseSync(semTab);
+    s.exec(`CREATE TABLE x (a); PRAGMA user_version = 1`);
+    s.close();
     recusa('semtab.db', /faltam tabelas/);
     const fk = join(dir, 'fk.db');
     await bancoCom(fk, 'FK');
     const k = new DatabaseSync(fk);
-    k.exec("PRAGMA foreign_keys = OFF; INSERT INTO matriculas (aluno_id, turma_id, ano_letivo) VALUES (999, 999, 2026)");
+    k.exec('PRAGMA foreign_keys = OFF; INSERT INTO matriculas (aluno_id, turma_id, ano_letivo) VALUES (999, 999, 2026)');
     k.close();
     recusa('fk.db', /foreign_key_check/);
     assert.equal(validarArquivoDeBackup(atual), null, 'o banco bom passa na validação');

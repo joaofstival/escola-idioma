@@ -16,7 +16,9 @@ async function cenario() {
 }
 
 const mensalidadesDe = (api: ApiTeste, matriculaId: number) =>
-  api.db.all<any>('SELECT competencia, vencimento, valor, status FROM mensalidades WHERE matricula_id = ? ORDER BY competencia', [matriculaId]);
+  api.db.all<any>('SELECT competencia, vencimento, valor, status FROM mensalidades WHERE matricula_id = ? ORDER BY competencia', [
+    matriculaId,
+  ]);
 
 test('matrícula gera mensalidades proporcionais (mês da matrícula até dezembro) com o valor do idioma', async () => {
   const { api, ingles, turma, aluno } = await cenario();
@@ -46,7 +48,10 @@ test('matrícula gera mensalidades proporcionais (mês da matrícula até dezemb
   assert.equal(ms2[0].vencimento, '2026-06-20');
 
   const lista = await api.ok('GET', `/matriculas?ano=2026&turma_id=${t.id}`);
-  assert.deepEqual(lista.map((x: any) => x.aluno_nome), ['Alice', 'Bruno']);
+  assert.deepEqual(
+    lista.map((x: any) => x.aluno_nome),
+    ['Alice', 'Bruno'],
+  );
   assert.equal((await api.ok('GET', `/matriculas?aluno_id=${a.id}`)).length, 1);
   assert.equal((await api.ok('GET', '/matriculas?status=cancelada')).length, 0);
   await api.falha('GET', '/matriculas?status=xyz', undefined, 422);
@@ -66,8 +71,14 @@ test('matrícula: capacidade, aluno inativo, ano diferente da turma e dados inv�
   const t2 = await turma('EN1-B', ingles.id, 1, 2026);
   const inativo = await aluno('Inativo', { ativo: false });
   assert.match((await api.falha('POST', '/matriculas', { aluno_id: inativo.id, turma_id: t2.id }, 422)).detalhes!.join(), /inativo/);
-  assert.match((await api.falha('POST', '/matriculas', { aluno_id: b.id, turma_id: t2.id, ano_letivo: 2025 }, 422)).detalhes!.join(), /diferente do ano da turma/);
-  assert.match((await api.falha('POST', '/matriculas', { aluno_id: b.id, turma_id: t2.id, data: '2027-01-01' }, 422)).detalhes!.join(), /posterior/);
+  assert.match(
+    (await api.falha('POST', '/matriculas', { aluno_id: b.id, turma_id: t2.id, ano_letivo: 2025 }, 422)).detalhes!.join(),
+    /diferente do ano da turma/,
+  );
+  assert.match(
+    (await api.falha('POST', '/matriculas', { aluno_id: b.id, turma_id: t2.id, data: '2027-01-01' }, 422)).detalhes!.join(),
+    /posterior/,
+  );
   assert.match((await api.falha('POST', '/matriculas', { aluno_id: 999, turma_id: t2.id }, 422)).detalhes!.join(), /Aluno 999/);
   assert.match((await api.falha('POST', '/matriculas', { aluno_id: b.id, turma_id: 999 }, 422)).detalhes!.join(), /Turma 999/);
   assert.equal((await api.falha('POST', '/matriculas', {}, 422)).detalhes!.length, 2);
@@ -137,7 +148,12 @@ test('rematrícula: conclui a matrícula do ano anterior, gera 12 parcelas e exi
   assert.equal((await api.ok('GET', `/matriculas/${ant.id}`)).status, 'concluida');
 
   await api.falha('POST', '/matriculas/rematricula', { aluno_id: a.id, turma_id_destino: en2.id, ano_letivo: 2026 }, 422);
-  const semVinculo = await api.falha('POST', '/matriculas/rematricula', { aluno_id: a.id, turma_id_destino: es2.id, ano_letivo: 2026 }, 422);
+  const semVinculo = await api.falha(
+    'POST',
+    '/matriculas/rematricula',
+    { aluno_id: a.id, turma_id_destino: es2.id, ano_letivo: 2026 },
+    422,
+  );
   assert.match(semVinculo.detalhes![0], /não tem matrícula .* Espanhol em 2025/);
   await api.falha('POST', '/matriculas/rematricula', { aluno_id: a.id, turma_id_destino: en2.id, ano_letivo: 2027 }, 422);
   await api.falha('POST', '/matriculas/rematricula', { aluno_id: a.id }, 422);
@@ -150,7 +166,9 @@ test('rematrícula bloqueada para aluno com mensalidade em atraso (Lei 9.870/99)
   const a = await aluno('Alice');
   definirHoje('2025-02-01');
   const ant = await api.ok('POST', '/matriculas', { aluno_id: a.id, turma_id: en1.id });
-  api.db.run("UPDATE mensalidades SET status = 'paga', valor_pago = valor, data_pagamento = vencimento, forma_pagamento = 'pix' WHERE competencia < '2025-11'");
+  api.db.run(
+    "UPDATE mensalidades SET status = 'paga', valor_pago = valor, data_pagamento = vencimento, forma_pagamento = 'pix' WHERE competencia < '2025-11'",
+  );
   definirHoje('2025-12-15'); // novembro e dezembro vencidos
   const r = await api.falha('POST', '/matriculas/rematricula', { aluno_id: a.id, turma_id_destino: en2.id, ano_letivo: 2026 }, 422);
   assert.match(r.erro, /Rematrícula bloqueada.*2 mensalidade/);
@@ -174,26 +192,45 @@ test('sugestões de rematrícula: nível + 1 (máx. 12), turmas com vaga e aluno
   const en12n = await turma('EN12-26', ingles.id, 12, 2026);
   const [ana, bia, caio, davi, inativo] = await Promise.all(['Ana', 'Bia', 'Caio', 'Davi', 'Eva'].map((n) => aluno(n)));
   definirHoje('2025-02-01');
-  for (const [al, t] of [[ana, en1], [bia, en1], [caio, en12], [davi, es1], [inativo, en1]] as const) {
+  for (const [al, t] of [
+    [ana, en1],
+    [bia, en1],
+    [caio, en12],
+    [davi, es1],
+    [inativo, en1],
+  ] as const) {
     await api.ok('POST', '/matriculas', { aluno_id: al.id, turma_id: t.id });
   }
   await api.ok('PUT', `/alunos/${inativo.id}`, { ativo: false });
   const mDavi = api.db.get<any>('SELECT id FROM matriculas WHERE aluno_id = ?', [davi.id])!;
   await api.ok('PUT', `/matriculas/${mDavi.id}/cancelar`); // cancelada não entra
-  api.db.run("UPDATE mensalidades SET status = 'paga', valor_pago = valor, data_pagamento = vencimento, forma_pagamento = 'pix' WHERE aluno_id <> ?", [bia.id]);
+  api.db.run(
+    "UPDATE mensalidades SET status = 'paga', valor_pago = valor, data_pagamento = vencimento, forma_pagamento = 'pix' WHERE aluno_id <> ?",
+    [bia.id],
+  );
   definirHoje('2026-01-20');
   await api.ok('POST', '/matriculas', { aluno_id: ana.id, turma_id: en2a.id }); // Ana já matriculada em 2026: sai; EN2-A lota
 
   const sug = await api.ok('GET', '/matriculas/sugestoes-rematricula?ano=2026');
-  assert.deepEqual(sug.map((s: any) => s.aluno_nome), ['Bia', 'Caio']);
+  assert.deepEqual(
+    sug.map((s: any) => s.aluno_nome),
+    ['Bia', 'Caio'],
+  );
   const [b, c] = sug;
   assert.equal(b.nivel_atual, 1);
   assert.equal(b.nivel_sugerido, 2);
   assert.equal(b.idioma_nome, 'Inglês');
-  assert.deepEqual(b.turmas_sugeridas.map((t: any) => t.id), [en2b.id], 'EN2-A está lotada');
+  assert.deepEqual(
+    b.turmas_sugeridas.map((t: any) => t.id),
+    [en2b.id],
+    'EN2-A está lotada',
+  );
   assert.equal(b.inadimplente, true);
   assert.equal(c.nivel_sugerido, 12, 'não passa de 12');
-  assert.deepEqual(c.turmas_sugeridas.map((t: any) => t.id), [en12n.id]);
+  assert.deepEqual(
+    c.turmas_sugeridas.map((t: any) => t.id),
+    [en12n.id],
+  );
   assert.equal(c.inadimplente, false);
   assert.equal(c.matricula_anterior_id, api.db.get<any>('SELECT id FROM matriculas WHERE aluno_id = ?', [caio.id])!.id);
 

@@ -12,7 +12,10 @@ import type { Migration } from './migrations/index.ts';
 export type Param = string | number | boolean | null | undefined | Uint8Array;
 export type Params = Param[] | Record<string, Param>;
 
-export interface RunResult { lastInsertRowid: number; changes: number }
+export interface RunResult {
+  lastInsertRowid: number;
+  changes: number;
+}
 
 export interface Db {
   /** Todas as linhas da consulta. */
@@ -38,8 +41,17 @@ export const BOOL_COLUMNS = new Set<string>(['ativo']);
 
 /** Tabelas na ordem de criação (dependências primeiro). Usado para limpar os dados. */
 export const TABELAS = [
-  'idiomas', 'alunos', 'professores', 'professor_idiomas', 'turmas', 'matriculas', 'materiais',
-  'mensalidades', 'avaliacoes', 'avaliacao_respostas', 'avaliacao_resposta_itens',
+  'idiomas',
+  'alunos',
+  'professores',
+  'professor_idiomas',
+  'turmas',
+  'matriculas',
+  'materiais',
+  'mensalidades',
+  'avaliacoes',
+  'avaliacao_respostas',
+  'avaliacao_resposta_itens',
 ] as const;
 
 /** Remove acentos e passa para minúsculas: usada nas buscas (função SQL `sem_acento`). */
@@ -93,7 +105,10 @@ function copiarAntesDaTrocaDeMotor(file: string): void {
   copiarSemSobrescrever(file, copia);
 }
 
-export interface OpenDbOptions { file?: string; /** Só para testes: lista alternativa de migrations. */ migrations?: Migration[] }
+export interface OpenDbOptions {
+  file?: string;
+  /** Só para testes: lista alternativa de migrations. */ migrations?: Migration[];
+}
 
 /** Abre (ou cria) o banco. Sem `file`, cria um banco em memória. Assíncrona por compatibilidade com os chamadores. */
 export async function openDb(opts: OpenDbOptions = {}): Promise<Db> {
@@ -163,7 +178,9 @@ export async function openDb(opts: OpenDbOptions = {}): Promise<Db> {
         profundidade--;
         try {
           raw.exec(profundidade === 0 ? 'ROLLBACK' : `ROLLBACK TO ${nome}; RELEASE ${nome}`);
-        } catch { /* o SQLite já desfez sozinho (ex.: disco cheio): mantém o erro original */ }
+        } catch {
+          /* o SQLite já desfez sozinho (ex.: disco cheio): mantém o erro original */
+        }
         throw err;
       }
     },

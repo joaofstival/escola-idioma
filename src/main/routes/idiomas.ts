@@ -32,11 +32,15 @@ export function register(router: Router, db: Db): void {
 
   router.get('/idiomas/:id', ({ params }) => buscarIdioma(db, parseId(params.id, 'Idioma')));
 
-  router.post('/idiomas', ({ body }) => {
-    const d = validar(db, exigirCorpo(body), null);
-    const { lastInsertRowid } = db.run('INSERT INTO idiomas (nome, codigo, mensalidade) VALUES (:nome, :codigo, :mensalidade)', d);
-    return buscarIdioma(db, lastInsertRowid);
-  }, { status: 201 });
+  router.post(
+    '/idiomas',
+    ({ body }) => {
+      const d = validar(db, exigirCorpo(body), null);
+      const { lastInsertRowid } = db.run('INSERT INTO idiomas (nome, codigo, mensalidade) VALUES (:nome, :codigo, :mensalidade)', d);
+      return buscarIdioma(db, lastInsertRowid);
+    },
+    { status: 201 },
+  );
 
   router.put('/idiomas/:id', ({ params, body }) => {
     const id = parseId(params.id, 'Idioma');
@@ -52,7 +56,9 @@ export function register(router: Router, db: Db): void {
     const c = db.get<{ turmas: number; materiais: number; professores: number }>(
       `SELECT (SELECT count(*) FROM turmas WHERE idioma_id = :id) AS turmas,
               (SELECT count(*) FROM materiais WHERE idioma_id = :id) AS materiais,
-              (SELECT count(*) FROM professor_idiomas WHERE idioma_id = :id) AS professores`, { id })!;
+              (SELECT count(*) FROM professor_idiomas WHERE idioma_id = :id) AS professores`,
+      { id },
+    )!;
     const deps: string[] = [];
     if (c.turmas) deps.push(`${c.turmas} turma(s)`);
     if (c.materiais) deps.push(`${c.materiais} material(is)`);

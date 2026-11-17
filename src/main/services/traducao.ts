@@ -15,19 +15,26 @@ export const URL_MYMEMORY = 'https://api.mymemory.translated.net/get';
 export const URL_GOOGLE = 'https://translate.googleapis.com/translate_a/single';
 
 export interface TraducaoOpcoes {
-  fetch?: FetchFn; agora?: () => number; timeoutMs?: number;
+  fetch?: FetchFn;
+  agora?: () => number;
+  timeoutMs?: number;
   /** E-mail opcional do MyMemory (sobe a cota); padrão: variável de ambiente MYMEMORY_EMAIL. */
   email?: string | null;
 }
 
-interface PedidoTraducao { texto: string; de: string; para: string }
+interface PedidoTraducao {
+  texto: string;
+  de: string;
+  para: string;
+}
 
 /** Valida texto (obrigatório, até 500 bytes) e idiomas (ISO 639-1 suportados). 422 com os detalhes. */
 export function validarPedido(texto: unknown, de: unknown, para: unknown): PedidoTraducao {
   const detalhes: string[] = [];
   const t = typeof texto === 'string' ? texto.trim() : '';
   if (!t) detalhes.push('texto é obrigatório');
-  else if (Buffer.byteLength(t, 'utf8') > MAX_BYTES) detalhes.push(`texto deve ter no máximo ${MAX_BYTES} bytes (tem ${Buffer.byteLength(t, 'utf8')})`);
+  else if (Buffer.byteLength(t, 'utf8') > MAX_BYTES)
+    detalhes.push(`texto deve ter no máximo ${MAX_BYTES} bytes (tem ${Buffer.byteLength(t, 'utf8')})`);
   const norm = (v: unknown) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
   const d = norm(de);
   const p = norm(para);
@@ -38,7 +45,11 @@ export function validarPedido(texto: unknown, de: unknown, para: unknown): Pedid
   return { texto: t, de: d, para: p };
 }
 
-interface EntradaCache { traducao: string; alternativas: string[]; criadoEm: number }
+interface EntradaCache {
+  traducao: string;
+  alternativas: string[];
+  criadoEm: number;
+}
 
 export class ServicoTraducao {
   private readonly fetchFn: FetchFn;
@@ -51,7 +62,7 @@ export class ServicoTraducao {
     this.fetchFn = op.fetch ?? fetchPadrao();
     this.agora = op.agora ?? Date.now;
     this.timeoutMs = op.timeoutMs ?? TIMEOUT_PADRAO_MS;
-    this.email = op.email !== undefined ? op.email : (process.env.MYMEMORY_EMAIL?.trim() || null);
+    this.email = op.email !== undefined ? op.email : process.env.MYMEMORY_EMAIL?.trim() || null;
   }
 
   limparCache(): void {
@@ -77,7 +88,8 @@ export class ServicoTraducao {
       if (Array.isArray(c.matches)) {
         for (const m of c.matches.slice(0, 5)) {
           const t = ehObjeto(m) && typeof m.translation === 'string' ? m.translation.trim() : '';
-          if (t && t.toLowerCase() !== traducao.toLowerCase() && !alternativas.some((a) => a.toLowerCase() === t.toLowerCase())) alternativas.push(t);
+          if (t && t.toLowerCase() !== traducao.toLowerCase() && !alternativas.some((a) => a.toLowerCase() === t.toLowerCase()))
+            alternativas.push(t);
         }
       }
       return { traducao, alternativas: alternativas.slice(0, 3) };
@@ -92,7 +104,10 @@ export class ServicoTraducao {
     try {
       const r = await obterJson(this.fetchFn, `${URL_GOOGLE}?${qs}`, this.timeoutMs);
       if (!r.ok || !Array.isArray(r.corpo) || !Array.isArray(r.corpo[0])) return null;
-      const t = (r.corpo[0] as unknown[]).map((s) => (Array.isArray(s) && typeof s[0] === 'string' ? s[0] : '')).join('').trim();
+      const t = (r.corpo[0] as unknown[])
+        .map((s) => (Array.isArray(s) && typeof s[0] === 'string' ? s[0] : ''))
+        .join('')
+        .trim();
       return t || null;
     } catch {
       return null;
@@ -106,7 +121,14 @@ export class ServicoTraducao {
     const k = this.chave(p);
     const c = this.cache.get(k);
     if (c && this.agora() - c.criadoEm < TTL_CACHE_MS) {
-      return { texto: p.texto, traducao: c.traducao, de: p.de, para: p.para, fonte: 'cache', ...(c.alternativas.length ? { alternativas: c.alternativas } : {}) };
+      return {
+        texto: p.texto,
+        traducao: c.traducao,
+        de: p.de,
+        para: p.para,
+        fonte: 'cache',
+        ...(c.alternativas.length ? { alternativas: c.alternativas } : {}),
+      };
     }
 
     let achado: { traducao: string; alternativas: string[]; fonte: string } | null = null;
@@ -128,7 +150,11 @@ export class ServicoTraducao {
       this.cache.set(k, { traducao: achado.traducao, alternativas: achado.alternativas, criadoEm: this.agora() });
     }
     return {
-      texto: p.texto, traducao: achado.traducao, de: p.de, para: p.para, fonte: achado.fonte,
+      texto: p.texto,
+      traducao: achado.traducao,
+      de: p.de,
+      para: p.para,
+      fonte: achado.fonte,
       ...(achado.alternativas.length ? { alternativas: achado.alternativas } : {}),
     };
   }

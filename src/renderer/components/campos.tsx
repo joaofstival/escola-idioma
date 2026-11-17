@@ -23,7 +23,14 @@ const Rotulo = ({ texto, obrigatorio }: { texto: string; obrigatorio?: boolean }
 );
 
 /** Campo de texto ligado ao react-hook-form: rótulo sempre visível, erro inline ligado ao campo (aria-describedby). */
-export function CampoTexto<T extends FieldValues>({ nome, rotulo, dica, obrigatorio, className, ...input }: Base<T> & Omit<ComponentProps<typeof Input>, 'name' | 'value' | 'onChange'>) {
+export function CampoTexto<T extends FieldValues>({
+  nome,
+  rotulo,
+  dica,
+  obrigatorio,
+  className,
+  ...input
+}: Base<T> & Omit<ComponentProps<typeof Input>, 'name' | 'value' | 'onChange'>) {
   const { control } = useFormContext<T>();
   return (
     <FormField
@@ -43,7 +50,14 @@ export function CampoTexto<T extends FieldValues>({ nome, rotulo, dica, obrigato
   );
 }
 
-export function CampoTextarea<T extends FieldValues>({ nome, rotulo, dica, obrigatorio, className, ...area }: Base<T> & Omit<ComponentProps<typeof Textarea>, 'name' | 'value' | 'onChange'>) {
+export function CampoTextarea<T extends FieldValues>({
+  nome,
+  rotulo,
+  dica,
+  obrigatorio,
+  className,
+  ...area
+}: Base<T> & Omit<ComponentProps<typeof Textarea>, 'name' | 'value' | 'onChange'>) {
   const { control } = useFormContext<T>();
   return (
     <FormField
@@ -71,7 +85,14 @@ export interface OpcaoSelect {
 
 /** Select (valores sempre string; a tela converte). Item vazio: passe uma opção com valor "" e ela vira o texto de "nenhum". */
 export function CampoSelect<T extends FieldValues>({
-  nome, rotulo, dica, obrigatorio, className, opcoes, placeholder = 'Selecione', disabled,
+  nome,
+  rotulo,
+  dica,
+  obrigatorio,
+  className,
+  opcoes,
+  placeholder = 'Selecione',
+  disabled,
 }: Base<T> & { opcoes: OpcaoSelect[]; placeholder?: string; disabled?: boolean }) {
   const { control } = useFormContext<T>();
   return (
@@ -81,7 +102,11 @@ export function CampoSelect<T extends FieldValues>({
       render={({ field }) => (
         <FormItem className={className}>
           <Rotulo texto={rotulo} obrigatorio={obrigatorio} />
-          <Select value={field.value ? String(field.value) : opcoes.some((o) => !o.valor) ? VAZIO_INTERNO : ''} onValueChange={(v) => field.onChange(v === VAZIO_INTERNO ? '' : v)} disabled={disabled}>
+          <Select
+            value={field.value ? String(field.value) : opcoes.some((o) => !o.valor) ? VAZIO_INTERNO : ''}
+            onValueChange={(v) => field.onChange(v === VAZIO_INTERNO ? '' : v)}
+            disabled={disabled}
+          >
             <FormControl>
               <SelectTrigger className="w-full" onBlur={field.onBlur}>
                 <SelectValue placeholder={placeholder} />
