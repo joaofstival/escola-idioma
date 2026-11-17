@@ -5,6 +5,7 @@ import EmMigracao from '@/pages/em-migracao';
 import Financeiro from '@/pages/financeiro';
 import Cotacao from '@/pages/cotacao';
 import Traducao from '@/pages/traducao';
+import Configuracoes from '@/pages/configuracoes';
 import Painel from '@/pages/dashboard';
 import Avaliacoes from '@/pages/avaliacoes';
 import { AvaliacaoDetalhe, AvaliacaoNova } from '@/pages/avaliacao-detalhe';
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="financeiro" element={<Financeiro />} />
           <Route path="cotacao" element={<Cotacao />} />
           <Route path="traducao" element={<Traducao />} />
+          <Route path="configuracoes" element={<Configuracoes />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

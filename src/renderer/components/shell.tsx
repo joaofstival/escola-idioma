@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   BookOpen, ClipboardCheck, Coins, GraduationCap, Languages, LayoutDashboard, Menu, Presentation,
-  ScrollText, Users, UserRound, Wallet, X, type LucideIcon,
+  ScrollText, Settings, Users, UserRound, Wallet, X, type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -34,7 +34,13 @@ export const NAVEGACAO: { grupo: string; itens: Item[] }[] = [
       { rota: 'cotacao', rotulo: 'Cotação de moedas', icone: Coins },
     ],
   },
-  { grupo: 'Ferramentas', itens: [{ rota: 'traducao', rotulo: 'Tradutor', icone: ScrollText }] },
+  {
+    grupo: 'Ferramentas',
+    itens: [
+      { rota: 'traducao', rotulo: 'Tradutor', icone: ScrollText },
+      { rota: 'configuracoes', rotulo: 'Configurações', icone: Settings },
+    ],
+  },
 ];
 
 function Navegacao({ aoNavegar }: { aoNavegar?: () => void }) {
