@@ -250,3 +250,22 @@ test('rollback real: checkpoint + journal_mode=DELETE devolve arquivo legível p
     );
   });
 });
+
+test('transaction(): COMMIT que falha desfaz tudo e não deixa o banco quebrado para a próxima transação', async () => {
+  const db = await openDb();
+  // FK adiada só é checada no COMMIT: o erro nasce depois do corpo da função terminar.
+  assert.throws(
+    () =>
+      db.transaction(() => {
+        db.exec('PRAGMA defer_foreign_keys = ON');
+        db.run('INSERT INTO turmas (nome, idioma_id, nivel, ano_letivo, capacidade) VALUES (?, ?, ?, ?, ?)', ['X', 999, 1, 2026, 10]);
+      }),
+    /FOREIGN KEY/,
+  );
+  assert.equal(db.get<{ n: number }>('SELECT COUNT(*) AS n FROM turmas')!.n, 0, 'a transação falha deve ter sido desfeita');
+  // antes da correção: profundidade ficava em -1 e esta chamada emitia "SAVEPOINT sp_-1"
+  const r = db.transaction(() => db.run("INSERT INTO idiomas (nome, codigo, mensalidade) VALUES ('Teste', 'tt', 100)"));
+  assert.equal(r.changes, 1);
+  db.transaction(() => db.transaction(() => db.run("INSERT INTO idiomas (nome, codigo, mensalidade) VALUES ('Aninhada', 'an', 100)")));
+  assert.equal(db.get<{ n: number }>('SELECT COUNT(*) AS n FROM idiomas')!.n >= 2, true);
+});

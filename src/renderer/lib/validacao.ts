@@ -1,5 +1,6 @@
 // Utilitários de validação de formulário (zod) e conversão de campos de texto.
 import { z } from 'zod';
+import { lerValor } from './financeiro.ts';
 
 /** Texto obrigatório (aparado), com limite. */
 export const textoObrigatorio = (rotulo: string, max = 120) =>
@@ -22,16 +23,11 @@ export const emailOpcional = z
   .trim()
   .refine((v) => v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), 'Informe um e-mail válido, como nome@exemplo.com.');
 
-/** Número em texto (aceita vírgula ou ponto); NaN se vazio/inválido. */
-export const paraNumero = (v: string): number =>
-  v.trim() === ''
-    ? Number.NaN
-    : Number(
-        v
-          .trim()
-          .replace(/\./g, v.includes(',') ? '' : '.')
-          .replace(',', '.'),
-      );
+/**
+ * Número em texto no formato pt-BR (vírgula decimal, ponto de milhar); NaN se vazio ou ambíguo/inválido.
+ * "1.500" é 1500, "1,5" é 1,5 e "1,250.50" é recusado. Mesma regra do financeiro (lerValor).
+ */
+export const paraNumero = (v: string): number => lerValor(v);
 
 /** Vazio → null (campos opcionais enviados à API). */
 export const nuloSeVazio = (v: string): string | null => (v.trim() === '' ? null : v.trim());

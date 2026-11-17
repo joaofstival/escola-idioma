@@ -15,7 +15,7 @@ export const RETENCAO_AUTOMATICOS = 14;
 const NOME_RE = /^escola-(auto|manual)-(\d{4})-(\d{2})-(\d{2})-(\d{6})(?:-\d+)?\.db$/;
 
 const dois = (n: number) => String(n).padStart(2, '0');
-const dataLocal = (d: Date) => `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`;
+export const dataLocal = (d: Date) => `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`;
 const horaLocal = (d: Date) => `${dois(d.getHours())}${dois(d.getMinutes())}${dois(d.getSeconds())}`;
 
 /** Pasta de backups ao lado do banco: userData/backups. */

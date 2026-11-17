@@ -66,3 +66,9 @@ export function anosLetivos(extra?: number): number[] {
   if (extra !== undefined && !anos.includes(extra)) anos.push(extra);
   return anos.sort((x, y) => y - x);
 }
+
+/** Taxa de câmbio: 2 a 4 casas, e 2 algarismos significativos abaixo de 0,01 (PYG: 0,00069 e não 0,0007). */
+export const taxa = (n: number): string =>
+  n !== 0 && Math.abs(n) < 0.01
+    ? n.toLocaleString('pt-BR', { maximumSignificantDigits: 2 })
+    : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });

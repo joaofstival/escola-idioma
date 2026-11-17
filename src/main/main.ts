@@ -12,6 +12,7 @@ import type { Router } from './router.ts';
 import { seed } from './seed.ts';
 import {
   concluirRestauracaoPendente,
+  dataLocal,
   exportarBackup,
   iniciarBackupAutomatico,
   prepararRestauracao,
@@ -102,7 +103,7 @@ function registrarIpcBackup(): void {
     if (!origemConfiavel(event)) throw new Error('Origem não autorizada');
     if (!db) return { ok: false, cancelado: false, erro: 'Banco de dados ainda não está pronto' };
     const win = BrowserWindow.fromWebContents(event.sender);
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = dataLocal(new Date()); // data local, como nos backups automáticos (em UTC-3, às 22h o UTC já é o dia seguinte)
     const opcoes = { defaultPath: join(app.getPath('documents'), `escola-backup-${hoje}.db`), filters: FILTRO_DB };
     const r = win ? await dialog.showSaveDialog(win, opcoes) : await dialog.showSaveDialog(opcoes);
     if (r.canceled || !r.filePath) return { ok: false, cancelado: true };

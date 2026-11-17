@@ -166,18 +166,20 @@ export async function openDb(opts: OpenDbOptions = {}): Promise<Db> {
     },
     transaction<T>(fn: () => T): T {
       const nome = `sp_${profundidade}`;
-      raw.exec(profundidade === 0 ? 'BEGIN IMMEDIATE' : `SAVEPOINT ${nome}`);
+      const raiz = profundidade === 0;
+      raw.exec(raiz ? 'BEGIN IMMEDIATE' : `SAVEPOINT ${nome}`);
       profundidade++;
       try {
         const r = fn();
         if (r instanceof Promise) throw new Error('transaction() não aceita funções assíncronas');
+        // COMMIT/RELEASE ainda dentro do try: se falharem (ex.: FK adiada), o catch desfaz.
+        raw.exec(raiz ? 'COMMIT' : `RELEASE ${nome}`);
         profundidade--;
-        raw.exec(profundidade === 0 ? 'COMMIT' : `RELEASE ${nome}`);
         return r;
       } catch (err) {
         profundidade--;
         try {
-          raw.exec(profundidade === 0 ? 'ROLLBACK' : `ROLLBACK TO ${nome}; RELEASE ${nome}`);
+          raw.exec(raiz ? 'ROLLBACK' : `ROLLBACK TO ${nome}; RELEASE ${nome}`);
         } catch {
           /* o SQLite já desfez sozinho (ex.: disco cheio): mantém o erro original */
         }
