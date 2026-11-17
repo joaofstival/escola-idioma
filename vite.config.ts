@@ -14,6 +14,7 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     target: 'es2023',
+    chunkSizeWarningLimit: 1500, // app local (file://): sem custo de rede, um bundle só
     // arquivo local (file://): sem modulepreload polyfill inline, compatível com a CSP script-src 'self'
     modulePreload: { polyfill: false },
   },

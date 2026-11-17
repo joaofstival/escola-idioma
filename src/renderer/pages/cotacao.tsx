@@ -118,7 +118,7 @@ export default function Cotacao() {
                       <TableCell>
                         {dataHora(c.atualizado_em)}
                         {c.desatualizada && (
-                          <StatusBadge tom="aviso" className="ml-2">
+                          <StatusBadge tom="atencao" className="ml-2">
                             Desatualizada
                           </StatusBadge>
                         )}

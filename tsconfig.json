@@ -15,5 +15,5 @@
     "forceConsistentCasingInFileNames": true,
     "paths": { "@/*": ["./src/renderer/*"] }
   },
-  "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts", "src/renderer/legado/**/*.ts", "vite.config.ts"]
+  "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts", "vite.config.ts"]
 }

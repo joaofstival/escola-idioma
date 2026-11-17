@@ -1,24 +1,19 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from '@/components/shell';
 import { Toaster } from '@/components/ui/sonner';
-import EmMigracao from '@/pages/em-migracao';
-import Financeiro from '@/pages/financeiro';
-import Cotacao from '@/pages/cotacao';
-import Traducao from '@/pages/traducao';
-import Configuracoes from '@/pages/configuracoes';
-import Painel from '@/pages/dashboard';
+import Alunos from '@/pages/alunos';
 import Avaliacoes from '@/pages/avaliacoes';
 import { AvaliacaoDetalhe, AvaliacaoNova } from '@/pages/avaliacao-detalhe';
-
-/** Telas ainda não portadas (plano 03). Cada tela portada troca seu item por uma rota própria. */
-const EM_MIGRACAO: Record<string, string> = {
-  alunos: 'Alunos',
-  professores: 'Professores',
-  idiomas: 'Idiomas e valores',
-  turmas: 'Turmas',
-  matriculas: 'Matrículas',
-  materiais: 'Materiais didáticos',
-};
+import Configuracoes from '@/pages/configuracoes';
+import Cotacao from '@/pages/cotacao';
+import Painel from '@/pages/dashboard';
+import Financeiro from '@/pages/financeiro';
+import Idiomas from '@/pages/idiomas';
+import Materiais from '@/pages/materiais';
+import Matriculas from '@/pages/matriculas';
+import Professores from '@/pages/professores';
+import Traducao from '@/pages/traducao';
+import Turmas from '@/pages/turmas';
 
 export default function App() {
   return (
@@ -26,10 +21,13 @@ export default function App() {
       <Routes>
         <Route element={<Shell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
-          {Object.entries(EM_MIGRACAO).map(([rota, titulo]) => (
-            <Route key={rota} path={`${rota}/*`} element={<EmMigracao titulo={titulo} />} />
-          ))}
           <Route path="dashboard" element={<Painel />} />
+          <Route path="alunos/:id?" element={<Alunos />} />
+          <Route path="professores" element={<Professores />} />
+          <Route path="idiomas" element={<Idiomas />} />
+          <Route path="turmas/:id?" element={<Turmas />} />
+          <Route path="matriculas" element={<Matriculas />} />
+          <Route path="materiais" element={<Materiais />} />
           <Route path="avaliacoes" element={<Avaliacoes />} />
           <Route path="avaliacoes/nova" element={<AvaliacaoNova />} />
           <Route path="avaliacoes/:id" element={<AvaliacaoDetalhe />} />

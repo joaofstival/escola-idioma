@@ -27,7 +27,12 @@ const STATUS = [
   { valor: 'cancelada', rotulo: 'Canceladas' },
 ];
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const TOM_STATUS: Record<ReturnType<typeof statusExibido>, Tom> = { paga: 'ok', pendente: 'info', atrasada: 'aviso', cancelada: 'neutro' };
+const TOM_STATUS: Record<ReturnType<typeof statusExibido>, Tom> = {
+  paga: 'ok',
+  pendente: 'info',
+  atrasada: 'atencao',
+  cancelada: 'neutro',
+};
 
 function explicacaoEncargos(m: Mensalidade): string {
   return `Valor original ${brl(m.valor)} + multa de 2% (${brl(m.multa)}) + juros de 1% ao mês pro rata, ${diasTxt(m.dias_atraso)} (${brl(m.juros)}) = ${brl(m.valor_atualizado)}, calculado para hoje.`;
@@ -111,7 +116,6 @@ export default function Financeiro() {
   const alvoEstorno: AlvoApagar | null = estornando
     ? {
         tipo: 'pagamento',
-        verbo: 'Estornar',
         nome: `${estornando.aluno_nome ?? 'aluno'} — ${fmtCompetencia(estornando.competencia)}`,
         aviso: `Estornar o pagamento de ${brl(estornando.valor_pago)}? A mensalidade volta a ficar em aberto e, se já venceu, volta a contar atraso.`,
       }
@@ -378,7 +382,7 @@ export default function Financeiro() {
                             <TableCell className="text-right tabular-nums">{brl(i.total)}</TableCell>
                             <TableCell className="text-right font-semibold tabular-nums">{brl(i.total_atualizado)}</TableCell>
                             <TableCell>
-                              <StatusBadge tom={i.acima_90_dias ? 'perigo' : 'aviso'}>
+                              <StatusBadge tom={i.acima_90_dias ? 'perigo' : 'atencao'}>
                                 {diasTxt(i.dias_max_atraso)}
                                 {i.acima_90_dias ? ' · acima de 90 dias' : ''}
                               </StatusBadge>
@@ -419,6 +423,7 @@ export default function Financeiro() {
       <ConfirmarApagar
         alvo={alvoEstorno}
         rotuloConfirmar="Estornar pagamento"
+        titulo={(a) => `Estornar ${a.tipo} “${a.nome}”?`}
         aoCancelar={() => setEstornando(null)}
         aoConfirmar={() => {
           const m = estornando;
