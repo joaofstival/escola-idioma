@@ -1,6 +1,6 @@
 // Painel inicial: KPIs, atalhos, inadimplentes e ocupação das turmas do ano.
 import type { Page } from '../page.ts';
-import type { Dashboard, Inadimplente, Turma } from '../../shared/types.ts';
+import type { Dashboard, Inadimplente, Turma } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { $, brl, esc, empty, nivel, showError } from '../ui.ts';
 import { anoAtual, barraOcupacao, carregando, estadoErro } from '../comum.ts';

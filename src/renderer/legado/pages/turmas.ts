@@ -1,7 +1,7 @@
 // Turmas: filtros por ano/idioma/nível, cards com ocupação, cadastro em modal (professor filtrado pelo idioma)
 // e detalhe em #/turmas/:id com alunos e materiais didáticos.
 import type { Page, PageParams } from '../page.ts';
-import type { Idioma, Material, Matricula, Professor, Turma } from '../../shared/types.ts';
+import type { Idioma, Material, Matricula, Professor, Turma } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { $, brl, cefr, confirmDialog, empty, esc, formData, nivel, pill, showError, toast } from '../ui.ts';
 import { anoAtual, barraOcupacao, carregando, estadoErro, formModal, opcoesAno, opcoesNivel, semVazios } from '../comum.ts';

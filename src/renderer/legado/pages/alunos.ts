@@ -1,6 +1,6 @@
 // Alunos: lista com busca e filtro, cadastro em modal, inativar/reativar e detalhe com histórico (#/alunos/:id).
 import type { Page, PageParams } from '../page.ts';
-import type { Aluno, Conversao, HistoricoAluno, Mensalidade, MatriculaStatus } from '../../shared/types.ts';
+import type { Aluno, Conversao, HistoricoAluno, Mensalidade, MatriculaStatus } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { $, brl, competencia, confirmDialog, date, empty, esc, formData, money, nivel, pill, showError, toast } from '../ui.ts';
 import { MOEDAS, carregando, debounce, estadoErro, formModal, semVazios } from '../comum.ts';

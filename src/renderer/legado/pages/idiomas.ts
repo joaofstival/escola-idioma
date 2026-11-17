@@ -1,6 +1,6 @@
 // Idiomas e valores: cada idioma tem um valor fixo de mensalidade, usado ao gerar as mensalidades das matrículas.
 import type { Page } from '../page.ts';
-import type { Idioma } from '../../shared/types.ts';
+import type { Idioma } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { $, brl, confirmDialog, empty, esc, formData, showError, toast } from '../ui.ts';
 import { carregando, estadoErro, formModal } from '../comum.ts';

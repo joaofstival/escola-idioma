@@ -12,7 +12,8 @@
     "erasableSyntaxOnly": true,
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": false,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "paths": { "@/*": ["./src/renderer/*"] }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts", "src/renderer/legado/**/*.ts", "vite.config.ts"]
 }

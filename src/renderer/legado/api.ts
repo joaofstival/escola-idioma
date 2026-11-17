@@ -1,5 +1,5 @@
 // Cliente da API usado por todas as telas. Fala com o processo principal via window.escola (IPC).
-import type { EscolaBridge, HttpMethod } from '../shared/types.ts';
+import type { EscolaBridge, HttpMethod } from '../../shared/types.ts';
 
 declare global { interface Window { escola: EscolaBridge } }
 

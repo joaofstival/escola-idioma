@@ -1,6 +1,6 @@
 // Professores: lista com os idiomas habilitados, cadastro em modal (checkboxes de idiomas) e ativar/inativar.
 import type { Page } from '../page.ts';
-import type { Idioma, Professor } from '../../shared/types.ts';
+import type { Idioma, Professor } from '../../../shared/types.ts';
 import { api } from '../api.ts';
 import { $, confirmDialog, empty, esc, formData, pill, showError, toast } from '../ui.ts';
 import { carregando, estadoErro, formModal, semVazios } from '../comum.ts';
