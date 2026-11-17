@@ -10,14 +10,14 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@/hooks/use-query';
 import { api, mensagemErro } from '@/lib/api';
-import { dinheiro } from '@/lib/format';
+import { lerValor } from '@/lib/financeiro';
+import { dinheiro, taxa } from '@/lib/format';
 import type { Conversao, CotacaoResposta } from '../../shared/types.ts';
 
 const dataHora = (iso: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 };
-const taxa = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 4, minimumFractionDigits: 2 });
 
 export default function Cotacao() {
   const q = useQuery(() => api.get<CotacaoResposta>('/cotacao'), []);
@@ -30,9 +30,8 @@ export default function Cotacao() {
 
   const moedas = Object.values(q.data?.cotacoes ?? {}).filter((c) => c.moeda !== 'BRL');
   const opcoes = ['BRL', ...moedas.map((c) => c.moeda)].map((m) => ({ valor: m, rotulo: m }));
-  const valorNum = Number(valor.trim().replace(',', '.'));
-  const erroValor =
-    valor.trim() === '' || !Number.isFinite(valorNum) || valorNum < 0 ? 'Informe um valor numérico maior ou igual a zero.' : null;
+  const valorNum = lerValor(valor);
+  const erroValor = valor.trim() === '' || !Number.isFinite(valorNum) || valorNum < 0 ? 'Informe um valor numérico, como 1.250,50.' : null;
 
   async function converter(e: React.FormEvent) {
     e.preventDefault();

@@ -183,7 +183,25 @@ function AbaNova({ params }: { params: URLSearchParams }) {
         Carregando…
       </div>
     );
-  return <FormNova alunos={base.data[0]} idiomas={base.data[1]} anoInicial={preTurma.data?.ano_letivo ?? anoAtual()} params={params} />;
+  // Turma pedida pelo link que não dá para usar: explica, em vez de deixar o campo vazio sem motivo.
+  const pedida = params.get('turma_id');
+  const aviso = !pedida
+    ? null
+    : !preTurma.data
+      ? 'Não foi possível carregar a turma indicada no link (ela pode ter sido apagada ou houve falha de conexão). Escolha a turma abaixo.'
+      : vagas(preTurma.data) === 0
+        ? `A turma ${preTurma.data.nome} está lotada. Escolha outra turma abaixo.`
+        : null;
+  return (
+    <>
+      {aviso && (
+        <p role="status" className="mb-4 rounded-xl border border-warning-deep/30 bg-warning-soft p-4 text-warning-deep">
+          {aviso}
+        </p>
+      )}
+      <FormNova alunos={base.data[0]} idiomas={base.data[1]} anoInicial={preTurma.data?.ano_letivo ?? anoAtual()} params={params} />
+    </>
+  );
 }
 
 function FormNova({
@@ -351,13 +369,15 @@ function AbaRematriculas({ params, mudar }: { params: URLSearchParams; mudar: Mu
     () => Promise.all([api.get<SugestaoRematricula[]>('/matriculas/sugestoes-rematricula', { ano }), api.get<Turma[]>('/turmas', { ano })]),
     [ano],
   );
-  const [destinos, setDestinos] = useState<Record<number, string>>({});
-  const [enviando, setEnviando] = useState<number | null>(null);
+  // Uma linha = um aluno em um idioma; o ano entra na chave para a escolha de outro ano nunca valer neste.
+  const chaveDe = (s: SugestaoRematricula) => `${ano}|${s.aluno_id}|${s.idioma_id}`;
+  const [destinos, setDestinos] = useState<Record<string, string>>({});
+  const [enviando, setEnviando] = useState<string | null>(null);
   const [sugs, turmas] = q.data ?? [undefined, [] as Turma[]];
 
   // destino = escolha do usuário ou, por padrão, a primeira turma sugerida
   const destinoDe = (s: SugestaoRematricula): string =>
-    destinos[s.aluno_id] ?? (s.turmas_sugeridas[0] ? String(s.turmas_sugeridas[0].id) : '');
+    destinos[chaveDe(s)] ?? (s.turmas_sugeridas[0] ? String(s.turmas_sugeridas[0].id) : '');
 
   async function rematricular(s: SugestaoRematricula) {
     const destino = destinoDe(s);
@@ -365,7 +385,7 @@ function AbaRematriculas({ params, mudar }: { params: URLSearchParams; mudar: Mu
       toast.error(`Escolha a turma de destino de ${s.aluno_nome}.`);
       return;
     }
-    setEnviando(s.aluno_id);
+    setEnviando(chaveDe(s));
     try {
       const m = await api.post<Matricula>('/matriculas/rematricula', {
         aluno_id: s.aluno_id,
@@ -438,7 +458,7 @@ function AbaRematriculas({ params, mudar }: { params: URLSearchParams; mudar: Mu
                     .sort((a, b) => a.nivel - b.nivel);
                   const semTurma = !s.turmas_sugeridas.length && !outras.length;
                   return (
-                    <TableRow key={s.aluno_id}>
+                    <TableRow key={chaveDe(s)}>
                       <TableCell>
                         <Link to={`/alunos/${s.aluno_id}`} className="font-medium text-primary hover:underline">
                           {s.aluno_nome}
@@ -458,7 +478,7 @@ function AbaRematriculas({ params, mudar }: { params: URLSearchParams; mudar: Mu
                       <TableCell>
                         <Select
                           value={destinoDe(s) || undefined}
-                          onValueChange={(v) => setDestinos((d) => ({ ...d, [s.aluno_id]: v }))}
+                          onValueChange={(v) => setDestinos((d) => ({ ...d, [chaveDe(s)]: v }))}
                           disabled={s.inadimplente || semTurma}
                         >
                           <SelectTrigger className="w-72" aria-label={`Turma de destino de ${s.aluno_nome}`}>
@@ -497,10 +517,10 @@ function AbaRematriculas({ params, mudar }: { params: URLSearchParams; mudar: Mu
                           <Button
                             size="sm"
                             aria-label={`Rematricular ${s.aluno_nome}`}
-                            disabled={enviando === s.aluno_id || semTurma}
+                            disabled={enviando === chaveDe(s) || semTurma}
                             onClick={() => void rematricular(s)}
                           >
-                            {enviando === s.aluno_id && <Loader2 className="animate-spin" aria-hidden="true" />}
+                            {enviando === chaveDe(s) && <Loader2 className="animate-spin" aria-hidden="true" />}
                             Rematricular
                           </Button>
                         )}

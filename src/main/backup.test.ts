@@ -295,3 +295,9 @@ test('exportar recusa o arquivo do próprio banco (e seus -wal/-shm)', async () 
     db.close();
   });
 });
+
+test('dataLocal usa o dia local, não o UTC (22h em UTC-3 continua no mesmo dia)', async () => {
+  const { dataLocal } = await import('./backup.ts');
+  assert.equal(dataLocal(new Date(2026, 10, 17, 22, 30)), '2026-11-17');
+  assert.equal(dataLocal(new Date(2026, 0, 5, 0, 10)), '2026-01-05');
+});
