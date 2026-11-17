@@ -72,4 +72,13 @@ Origem: revisão do projeto de 17/11/2026 (23 achados divididos em 3 planos; est
 - PR aberto para `modernizar-stack` com a lista de itens feitos, os não reproduzidos e o que foi decidido.
 
 ## Resultado
-(preencher ao terminar: o que foi feito por item, decisões tomadas e o porquê, o que ficou pendente)
+Feito em 17/11/2026, branch `correcoes-plano-1`, todos os 8 itens reproduzidos antes de corrigir (teste vermelho):
+1. Rematrícula com 2 idiomas: chave `ano|aluno|idioma` em destino, envio e `key` da linha. Teste de interface com Inglês e Espanhol do mesmo aluno (falhava: a linha de Espanhol mostrava a turma escolhida em Inglês).
+2. `paraNumero` passa a usar a regra do `lerValor` ("1.500" = 1500; "1,250.50" é recusado). Teste em `validacao.test.ts`.
+3. Destinos da rematrícula: o ano entrou na chave, então a escolha de outro ano nunca vale no ano atual. **Sem teste próprio** (a correção é estrutural, coberta pelo teste do item 1).
+4. Nova matrícula: aviso quando a turma do link não carrega ou está lotada (2 testes de interface, vermelhos antes).
+5. Conversor usa `lerValor` (aceita "1.250,50"); mensagem de erro cita o formato.
+6. `taxa()` foi para `lib/format.ts` e usa 2 algarismos significativos abaixo de 0,01 (0,00069 em vez de 0,0007). Teste em `format.test.ts`.
+7. Nome do backup exportado usa `dataLocal` (agora exportada de `backup.ts`). Teste de `dataLocal` com 22h local.
+8. `transaction()`: reproduzido com FK adiada (COMMIT falha → transação ficava aberta e `profundidade` em -1). COMMIT/RELEASE passaram para dentro do `try`, com um único decremento. Teste em `db.test.ts`.
+Pendente: nada deste plano. Fora do escopo e não alterado: o `/pagar` e o bloqueio de matrícula (Plano 3).
