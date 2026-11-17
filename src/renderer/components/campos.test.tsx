@@ -33,23 +33,23 @@ describe('CampoBusca', () => {
     const user = userEvent.setup();
     let valor = '';
     render(<Tela aoMudar={(v) => (valor = v)} />);
-    await user.click(screen.getByRole('combobox'));
-    await user.type(screen.getByRole('textbox', { name: /buscar/i }), 'joao');
+    await user.click(screen.getByRole('button', { name: /selecione o aluno/i }));
+    await user.type(screen.getByRole('combobox', { name: /buscar/i }), 'joao');
     expect(screen.getAllByRole('option')).toHaveLength(1);
     await user.keyboard('{Enter}');
     expect(valor).toBe('2');
-    expect(screen.getByRole('combobox')).toHaveTextContent('João Álvares');
+    expect(screen.getByRole('button', { name: /selecione o aluno/i })).toHaveTextContent('João Álvares');
   });
 
   test('mostra mensagem quando nada combina e escolhe por clique', async () => {
     const user = userEvent.setup();
     let valor = '';
     render(<Tela aoMudar={(v) => (valor = v)} />);
-    await user.click(screen.getByRole('combobox'));
-    await user.type(screen.getByRole('textbox', { name: /buscar/i }), 'zzz');
+    await user.click(screen.getByRole('button', { name: /selecione o aluno/i }));
+    await user.type(screen.getByRole('combobox', { name: /buscar/i }), 'zzz');
     expect(screen.getByText('Nenhum aluno encontrado.')).toBeInTheDocument();
-    await user.clear(screen.getByRole('textbox', { name: /buscar/i }));
-    await user.type(screen.getByRole('textbox', { name: /buscar/i }), 'ana');
+    await user.clear(screen.getByRole('combobox', { name: /buscar/i }));
+    await user.type(screen.getByRole('combobox', { name: /buscar/i }), 'ana');
     expect(screen.getAllByRole('option')).toHaveLength(2);
     await user.click(screen.getByRole('option', { name: /Ana Paula/ }));
     expect(valor).toBe('3');

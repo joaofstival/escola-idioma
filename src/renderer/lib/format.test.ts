@@ -36,6 +36,7 @@ test('competência aaaa-mm vira mm/aaaa', () => {
 
 test('dinheiro não arredonda para R$ 0,00 um valor entre 0 e 1 centavo', () => {
   assert.equal(dinheiro(0.0037).replace(/\s/g, ' '), 'R$ 0,0037');
+  assert.equal(dinheiro(0.00003).replace(/\s/g, ' '), 'R$ 0,00003');
   assert.equal(dinheiro(0).replace(/\s/g, ' '), 'R$ 0,00');
   assert.equal(dinheiro(5.5).replace(/\s/g, ' '), 'R$ 5,50');
 });

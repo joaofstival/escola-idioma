@@ -6,18 +6,25 @@ export const ou = (v: string | number | null | undefined): string =>
     ? VAZIO
     : String(v);
 
+/** Minúsculas e sem acento, para busca. */
+export const semAcento = (t: string): string =>
+  t
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+
 export const brl = (n: number | null | undefined): string =>
   n === null || n === undefined || Number.isNaN(n) ? VAZIO : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export function dinheiro(n: number | null | undefined, moeda = 'BRL'): string {
   if (n === null || n === undefined || Number.isNaN(n)) return VAZIO;
-  // Valor entre 0 e 1 centavo (ex.: 1 peso argentino ≈ R$ 0,0037) não pode virar "0,00": mostra até 4 casas.
+  // Valor entre 0 e 1 centavo (ex.: 1 peso argentino ≈ R$ 0,0037) não pode virar "0,00": mostra 2 algarismos significativos (0,0037; 0,00003).
   const pequeno = n !== 0 && Math.abs(n) < 0.01;
   try {
     return n.toLocaleString('pt-BR', {
       style: 'currency',
       currency: moeda,
-      ...(pequeno ? { minimumFractionDigits: 2, maximumFractionDigits: 4 } : {}),
+      ...(pequeno ? { maximumSignificantDigits: 2 } : {}),
     });
   } catch {
     return `${moeda} ${n.toFixed(2)}`;

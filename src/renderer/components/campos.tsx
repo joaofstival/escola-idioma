@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { useFormContext, type FieldPath, type FieldValues } from 'react-hook-form';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
+import { semAcento } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 interface Base<T extends FieldValues> {
@@ -154,12 +155,6 @@ export function CampoCheck<T extends FieldValues>({ nome, rotulo, dica, classNam
   );
 }
 
-const semAcento = (t: string) =>
-  t
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase();
-
 /** Seleção com busca: digite parte do nome (sem acento, maiúscula ou minúscula) e escolha na lista. Para listas grandes. */
 export function CampoBusca<T extends FieldValues>({
   nome,
@@ -171,7 +166,16 @@ export function CampoBusca<T extends FieldValues>({
   placeholder = 'Selecione',
   buscaPlaceholder = 'Digite para buscar',
   semResultado = 'Nada encontrado.',
-}: Base<T> & { opcoes: OpcaoSelect[]; placeholder?: string; buscaPlaceholder?: string; semResultado?: string }) {
+  disabled,
+  carregando,
+}: Base<T> & {
+  opcoes: OpcaoSelect[];
+  placeholder?: string;
+  buscaPlaceholder?: string;
+  semResultado?: string;
+  disabled?: boolean;
+  carregando?: boolean;
+}) {
   const { control } = useFormContext<T>();
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
@@ -182,6 +186,28 @@ export function CampoBusca<T extends FieldValues>({
     const termo = semAcento(busca.trim());
     return termo ? opcoes.filter((o) => semAcento(o.rotulo).includes(termo)) : opcoes;
   }, [opcoes, busca]);
+  // a lista pode encolher com o popover aberto: o item ativo nunca passa do fim
+  const ativoSeguro = Math.min(ativo, Math.max(filtradas.length - 1, 0));
+  const porTeclado = useRef(false);
+  const primeiroHabilitado = (lista: OpcaoSelect[]) =>
+    Math.max(
+      0,
+      lista.findIndex((o) => !o.desabilitada),
+    );
+  const mover = (delta: 1 | -1) => {
+    let i = ativoSeguro + delta;
+    while (i >= 0 && i < filtradas.length && filtradas[i].desabilitada) i += delta;
+    if (i >= 0 && i < filtradas.length) {
+      porTeclado.current = true;
+      setAtivo(i);
+    }
+  };
+  // rola até o item ativo só quando a mudança veio do teclado (com o mouse, a lista não pode "fugir" do cursor)
+  useEffect(() => {
+    if (!aberto || !porTeclado.current) return;
+    porTeclado.current = false;
+    document.getElementById(`${idLista}-${ativoSeguro}`)?.scrollIntoView?.({ block: 'nearest' });
+  }, [aberto, ativoSeguro, idLista]);
 
   return (
     <FormField
@@ -202,7 +228,7 @@ export function CampoBusca<T extends FieldValues>({
                 setAberto(a);
                 if (a) {
                   setBusca('');
-                  setAtivo(0);
+                  setAtivo(primeiroHabilitado(opcoes));
                 } else field.onBlur();
               }}
             >
@@ -210,10 +236,10 @@ export function CampoBusca<T extends FieldValues>({
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    role="combobox"
+                    aria-haspopup="listbox"
                     aria-expanded={aberto}
-                    aria-controls={idLista}
-                    className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-sm whitespace-nowrap aria-invalid:border-destructive"
+                    disabled={disabled}
+                    className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-sm whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive"
                   >
                     <span className={cn('truncate', !escolhida && 'text-muted-foreground')}>{escolhida?.rotulo ?? placeholder}</span>
                     <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -230,24 +256,30 @@ export function CampoBusca<T extends FieldValues>({
                   <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <input
                     ref={campoBusca}
+                    role="combobox"
+                    aria-expanded
+                    aria-autocomplete="list"
+                    aria-activedescendant={filtradas.length ? `${idLista}-${ativoSeguro}` : undefined}
                     aria-label={`Buscar: ${rotulo}`}
                     aria-controls={idLista}
                     value={busca}
                     placeholder={buscaPlaceholder}
                     onChange={(e) => {
                       setBusca(e.target.value);
-                      setAtivo(0);
+                      const termo = semAcento(e.target.value.trim());
+                      setAtivo(primeiroHabilitado(termo ? opcoes.filter((o) => semAcento(o.rotulo).includes(termo)) : opcoes));
                     }}
                     onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return; // IME: Enter confirma a composição, não a opção
                       if (e.key === 'ArrowDown') {
                         e.preventDefault();
-                        setAtivo((i) => Math.min(i + 1, filtradas.length - 1));
+                        mover(1);
                       } else if (e.key === 'ArrowUp') {
                         e.preventDefault();
-                        setAtivo((i) => Math.max(i - 1, 0));
+                        mover(-1);
                       } else if (e.key === 'Enter') {
                         e.preventDefault();
-                        const o = filtradas[ativo];
+                        const o = filtradas[ativoSeguro];
                         if (o && !o.desabilitada) escolher(o);
                       }
                     }}
@@ -255,23 +287,25 @@ export function CampoBusca<T extends FieldValues>({
                   />
                 </div>
                 <ul id={idLista} role="listbox" aria-label={rotulo} className="max-h-60 overflow-y-auto pt-1">
-                  {filtradas.length === 0 && <li className="px-2 py-3 text-sm text-muted-foreground">{semResultado}</li>}
+                  {filtradas.length === 0 && (
+                    <li role="presentation" className="px-2 py-3 text-sm text-muted-foreground">
+                      {carregando ? 'Carregando…' : semResultado}
+                    </li>
+                  )}
                   {filtradas.map((o, i) => (
                     // teclado: tratado no campo de busca (padrão combobox, foco fica no input)
                     // eslint-disable-next-line jsx-a11y/click-events-have-key-events
                     <li
                       key={o.valor}
+                      id={`${idLista}-${i}`}
                       role="option"
                       aria-selected={o.valor === String(field.value ?? '')}
                       aria-disabled={o.desabilitada || undefined}
-                      ref={(el) => {
-                        if (el && i === ativo) el.scrollIntoView?.({ block: 'nearest' });
-                      }}
                       onMouseEnter={() => setAtivo(i)}
                       onClick={() => !o.desabilitada && escolher(o)}
                       className={cn(
                         'flex cursor-pointer items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm',
-                        i === ativo && 'bg-accent text-accent-foreground',
+                        i === ativoSeguro && 'bg-accent text-accent-foreground',
                         o.desabilitada && 'cursor-not-allowed opacity-50',
                       )}
                     >
