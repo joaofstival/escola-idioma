@@ -16,36 +16,45 @@
 
 ## 2. Arquitetura (Electron + TypeScript)
 
+Atualizada em 17/11/2026 (modernização do stack: banco `node:sqlite`, migrations, front React). O contrato REST/IPC da seção 4 não mudou.
+
 | Camada | Escolha | Motivo |
 |---|---|---|
 | App desktop | Electron 45, `contextIsolation`, `sandbox`, sem Node no renderer | segurança padrão |
-| Linguagem | TypeScript 7 (strict, `erasableSyntaxOnly`), tipos compartilhados em `src/shared/types.ts` | contrato único main ↔ telas |
-| Build | esbuild (`scripts/build.mjs`) → `dist/` | rápido, sem config pesada |
-| Banco | **sql.js** (SQLite em WASM) persistido em `app.getPath('userData')/escola.db` | sem módulo nativo para recompilar |
-| Comunicação | IPC `api:request` com **mini-roteador REST** no main (mesmos métodos/caminhos da seção 4) e `file:save` para exportar CSV | o contrato REST fica testável sem Electron |
-| Integrações | Cotação: AwesomeAPI → fallback open.er-api; Tradução: MyMemory → fallback Google gtx → dicionário offline (ver `docs/pesquisa.md`) | definidas pelo agente de pesquisa |
+| Linguagem | TypeScript 7 (strict, `erasableSyntaxOnly`), tipos compartilhados em `src/shared/types.ts` | contrato único main ↔ telas. O `typescript` 6 fica instalado só para o typescript-eslint (ainda sem suporte ao 7); o `tsc` 7 roda pelo alias `typescript7` |
+| Build | esbuild para main e preload; **Vite** para o renderer (`scripts/build.mjs`) → `dist/` | rápido, sem config pesada |
+| Banco | **`node:sqlite`** (embutido no Node 24 do Electron) em `userData/escola.db`, modo WAL | sem módulo nativo para recompilar; grava em disco a cada transação, sem regravar o arquivo inteiro (o sql.js perdia dado em queda) |
+| Schema | **Migrations versionadas** em `src/main/migrations/` (a 001 é o schema original); antes de migrar o app copia o arquivo para `escola.db.pre-migracao` | evolução segura do banco do usuário |
+| Backup | `VACUUM INTO` ao abrir o app e a cada dia de uso, últimas 14 em `userData/backups/`; backup manual, exportar e restaurar na tela Configurações | a restauração guarda o banco atual como `escola.db.pre-restauracao-<data>` |
+| Comunicação | IPC `api:request` com **mini-roteador REST** no main (mesmos métodos/caminhos da seção 4), `file:save` para exportar CSV e IPC de backup | o contrato REST fica testável sem janela |
+| Front | **React 19 + Tailwind v4 + shadcn/ui** (Radix), react-router (hash), react-hook-form + zod nos formulários, lucide, Inter local; padrão visual em `docs/DESIGN.md` | acessível, consistente, sem CDN (app offline) |
+| Qualidade | ESLint 9 (typescript-eslint, react-hooks, jsx-a11y) + Prettier; CI em `.github/workflows/ci.yml` (Node 24) | regras valem para todo o código |
+| Testes | `node --test` (backend e regras puras, banco em memória) e **Vitest + Testing Library** em jsdom (`npm run test:ui`, `window.escola` falso só na borda) | contrato testado no backend, comportamento das telas na interface |
+| Integrações | Cotação: AwesomeAPI → fallback open.er-api; Tradução: MyMemory → fallback Google gtx → dicionário offline (ver `docs/pesquisa.md`) | definidas pelo agente |
 
 ```
 escola-idioma/
-  package.json  tsconfig.json  scripts/build.mjs
-  src/shared/types.ts          (entidades, ApiRequest/ApiResponse, EscolaBridge, Avaliação)
-  src/preload/preload.ts       (window.escola.request / saveFile)
+  package.json  tsconfig*.json  vite.config.ts  vitest.config.ts  eslint.config.mjs  scripts/build.mjs
+  src/shared/types.ts          (entidades, ApiRequest/ApiResponse, EscolaBridge, Avaliação, Backup)
+  src/preload/preload.ts       (window.escola.request / saveFile / exportarBackup / restaurarBackup)
   src/main/
-    main.ts                    (BrowserWindow, IPC, --seed)
-    db.ts                      (sql.js, schema, persistência)
+    main.ts                    (BrowserWindow, IPC, --seed, backup automático)
+    db.ts  migrations/         (node:sqlite, migrations versionadas)
+    backup.ts                  (VACUUM INTO, validação e restauração em duas fases)
     router.ts                  (roteador: method + path → handler; erros 404/422/500)
     seed.ts
     routes/*.ts                (um arquivo por recurso)
     services/*.ts              (cotacao, traducao, financeiro, avaliacao)
     **/*.test.ts               (node --test, banco em memória)
   src/renderer/
-    index.html styles.css avaliacoes.css
-    app.ts (roteador por hash)  api.ts (cliente IPC)  ui.ts (helpers)  page.ts (contrato de tela)
-    pages/<tela>.ts            (uma tela por arquivo)
-  docs/pesquisa.md   relatorio/
+    index.html index.css main.tsx app.tsx (rotas)
+    components/                (shell, estados, status-badge, filtro-select e ui/ do shadcn)
+    pages/<tela>.tsx           (uma tela por arquivo; *.test.tsx = testes de interface)
+    lib/ hooks/ test/          (formatação e regras de exibição, useQuery, falsos de teste)
+  docs/DESIGN.md  docs/pesquisa.md   relatorio/
 ```
 
-Comandos: `npm start` (build + abre o app), `npm run seed`, `npm test`, `npm run typecheck`.
+Comandos: `npm start` (build + abre o app), `npm run seed`, `npm test`, `npm run test:ui`, `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm run build`.
 
 ## 3. Modelo de dados
 

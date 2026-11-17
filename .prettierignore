@@ -4,3 +4,4 @@ package-lock.json
 relatorio
 src/renderer/components/ui
 src/renderer/legado
+*.md
