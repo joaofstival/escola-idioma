@@ -3,3 +3,9 @@ dist/
 *.db
 .DS_Store
 !src/main/fixtures/*.db
+
+var/
+.env
+.env.*
+!.env.example
+release/

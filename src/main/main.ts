@@ -1,3 +1,4 @@
+import { ClienteCentral } from './cliente-central.ts';
 // Processo principal do Electron: janela, banco (node:sqlite), IPC e segurança de navegação.
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
@@ -25,6 +26,7 @@ const PRELOAD = join(DIST, 'preload.cjs');
 const INDEX_HTML = join(DIST, 'renderer', 'index.html');
 const RENDERER_URL = pathToFileURL(join(DIST, 'renderer')).href;
 
+const central = process.env.ESCOLA_API_URL ? new ClienteCentral(process.env.ESCOLA_API_URL) : null;
 let db: Db | null = null;
 let api: Router | null = null;
 let janela: BrowserWindow | null = null;
@@ -63,6 +65,7 @@ async function iniciarBanco(): Promise<void> {
 function registrarIpc(): void {
   ipcMain.handle('api:request', async (event, req: ApiRequest): Promise<ApiResponse> => {
     if (!origemConfiavel(event)) return { ok: false, status: 403, erro: 'Origem não autorizada' };
+    if (central) return central.request(req);
     if (!api) return { ok: false, status: 503, erro: 'Banco de dados ainda não está pronto' };
     return api.handle(req);
   });
@@ -243,7 +246,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     try {
-      await iniciarBanco();
+      if (!central) await iniciarBanco();
     } catch (err) {
       console.error('Falha ao abrir o banco de dados', err);
       dialog.showErrorBox('Erro ao abrir o banco de dados', String(err instanceof Error ? err.message : err));

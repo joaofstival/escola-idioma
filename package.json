@@ -2,7 +2,7 @@
   "name": "escola-idioma",
   "version": "0.1.0",
   "private": true,
-  "description": "Sistema desktop de gestão de escola de idiomas (Electron + TypeScript)",
+  "description": "Sistema desktop de gest\u00e3o de escola de idiomas (Electron + TypeScript)",
   "main": "dist/main.js",
   "type": "module",
   "scripts": {
@@ -15,7 +15,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:ui": "vitest run"
+    "test:ui": "vitest run",
+    "server": "node src/server/bootstrap.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",
