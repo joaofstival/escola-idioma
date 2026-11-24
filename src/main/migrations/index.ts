@@ -1,3 +1,4 @@
+import { migration006 } from './006-comunicacao.ts';
 import { migration005 } from './005-aprendizagem.ts';
 import { migration004 } from './004-academico.ts';
 import { migration003 } from './003-financeiro.ts';
@@ -15,7 +16,7 @@ export interface Migration {
 }
 
 /** Ordem importa: versões sequenciais a partir de 1. Nunca edite uma migration já liberada; crie a próxima. */
-export const MIGRATIONS: Migration[] = [migration001, migration002, migration003, migration004, migration005];
+export const MIGRATIONS: Migration[] = [migration001, migration002, migration003, migration004, migration005, migration006];
 export const ULTIMA_VERSAO = MIGRATIONS[MIGRATIONS.length - 1].versao;
 
 function versaoDoBanco(raw: DatabaseSync): number {

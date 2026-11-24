@@ -38,4 +38,20 @@ export function criarRotasCotacao(servico: ServicoCotacao) {
   };
 }
 
-export const { register } = criarRotasCotacao(servicoCotacao);
+export function register(router: Router, db: Db): void {
+  const servico = new ServicoCotacao({
+    persistencia: {
+      carregar: () =>
+        db
+          .all<{ chave: string; valor: string }>("SELECT chave,valor FROM cache_integracoes WHERE chave LIKE 'cotacao:%'")
+          .map((r) => [r.chave.slice(8), JSON.parse(r.valor)]),
+      salvar: (moeda, valor) => {
+        db.run(
+          'INSERT INTO cache_integracoes(chave,valor,obtido_em) VALUES(?,?,?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor,obtido_em=excluded.obtido_em',
+          ['cotacao:' + moeda, JSON.stringify(valor), valor.obtidoEm],
+        );
+      },
+    },
+  });
+  criarRotasCotacao(servico).register(router, db);
+}

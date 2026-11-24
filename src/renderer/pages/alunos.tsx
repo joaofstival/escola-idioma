@@ -1,3 +1,4 @@
+import { ConsultaCep } from '@/components/consulta-cep';
 // Alunos: lista com busca e filtro, cadastro em diálogo, inativar/reativar e detalhe com histórico (#/alunos/:id).
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -89,6 +90,7 @@ function FormAluno({ aluno, aoFechar, aoSalvar }: { aluno: Aluno | null; aoFecha
       <CampoTexto<Valores> nome="documento" rotulo="Documento (CPF, RNE ou passaporte)" maxLength={30} />
       <CampoTexto<Valores> nome="email" rotulo="E-mail" type="email" maxLength={150} />
       <CampoTexto<Valores> nome="telefone" rotulo="Telefone" type="tel" maxLength={30} />
+      <ConsultaCep preencher={(v) => form.setValue('endereco', v, { shouldDirty: true })} />
       <CampoTexto<Valores> nome="endereco" rotulo="Endereço" maxLength={300} className="sm:col-span-2" />
       <CampoTexto<Valores> nome="pais_origem" rotulo="País de origem" maxLength={60} placeholder="Ex.: Brasil, Argentina" />
       <CampoSelect<Valores> nome="moeda_origem" rotulo="Moeda de origem" opcoes={moedas.map((m) => ({ valor: m, rotulo: m }))} />

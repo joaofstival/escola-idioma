@@ -1,3 +1,4 @@
+import { Feriados } from '@/components/feriados';
 import { useState } from 'react';
 import { useSessao } from '@/auth/sessao';
 import { useQuery } from '@/hooks/use-query';
@@ -120,6 +121,7 @@ export default function Agenda() {
   return (
     <section className="space-y-5">
       <h1 className="text-xl font-semibold">Agenda e frequência</h1>
+      <Feriados />
       {gestao && (
         <div className="grid gap-4 md:grid-cols-2">
           <details className="rounded-xl border p-4">

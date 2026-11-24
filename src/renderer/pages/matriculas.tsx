@@ -2,7 +2,7 @@
 // Aba inicial e pré-seleção pela query: #/matriculas?aba=nova&aluno_id=1&turma_id=2 | ?aba=rematriculas
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CircleCheck, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -201,8 +201,8 @@ function FormNova({
     resolver: zodResolver(esquemaNova),
     defaultValues: { aluno_id: params.get('aluno_id') ?? '', ano_letivo: String(anoInicial), turma_id: params.get('turma_id') ?? '' },
   });
-  const ano = form.watch('ano_letivo');
-  const turmaSel = form.watch('turma_id');
+  const ano = useWatch({ control: form.control, name: 'ano_letivo' });
+  const turmaSel = useWatch({ control: form.control, name: 'turma_id' });
   const turmasQ = useQuery(() => api.get<Turma[]>('/turmas', { ano }), [ano]);
   const turmas = turmasQ.data ?? [];
   const mensalidade = new Map(idiomas.map((i) => [i.id, i.mensalidade]));

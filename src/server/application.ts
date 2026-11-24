@@ -1,3 +1,5 @@
+import { ServicoFerramentas } from './modules/ferramentas.ts';
+import { ServicoComunicacao, RepositorioComunicacao } from './modules/communication/public.ts';
 import { ControladorAvaliacoes } from './modules/learning/avaliacoes.ts';
 import { ServicoAprendizagem, RepositorioAprendizagem } from './modules/learning/public.ts';
 import { ServicoBiblioteca, RepositorioBiblioteca } from './modules/library/public.ts';
@@ -15,6 +17,8 @@ import { ServicoAcademico, RepositorioAcademicoSqlite } from './modules/academic
 
 export class AplicacaoCentral {
   readonly db: Db;
+  private readonly ferramentas = new ServicoFerramentas();
+  readonly comunicacao: ServicoComunicacao;
   readonly identidade: ServicoIdentidade;
   readonly academico: ServicoAcademico;
   readonly diario: ServicoDiario;
@@ -29,6 +33,7 @@ export class AplicacaoCentral {
     this.legado = createApi(db);
     this.identidade = new ServicoIdentidade(new RepositorioIdentidade(db), new SegredosScrypt());
     this.academico = new ServicoAcademico(new RepositorioAcademicoSqlite(db));
+    this.comunicacao = new ServicoComunicacao(new RepositorioComunicacao(db), this.academico);
     this.avaliacoes = new ControladorAvaliacoes(db, this.academico, this.legado);
     this.diario = new ServicoDiario(new RepositorioDiario(db), this.academico);
     this.biblioteca = new ServicoBiblioteca(new RepositorioBiblioteca(db), this.academico);
@@ -59,6 +64,21 @@ export class AplicacaoCentral {
           );
         throw new HttpError(404, 'Rota não encontrada');
       }
+      if (caminho === '/ferramentas/cep' && req.method === 'GET') {
+        if (!['admin', 'secretaria'].includes(u.papel)) throw new HttpError(403, 'Acesso não permitido');
+        return this.ok(await this.ferramentas.cep(new URLSearchParams(req.path.split('?')[1]).get('cep') ?? ''));
+      }
+      if (caminho === '/ferramentas/feriados' && req.method === 'GET')
+        return this.ok(await this.ferramentas.feriados(new URLSearchParams(req.path.split('?')[1]).get('ano') ?? ''));
+      if (caminho === '/avisos' && req.method === 'GET') return this.ok(this.comunicacao.avisos(u));
+      if (caminho === '/avisos' && req.method === 'POST') return this.ok(this.comunicacao.publicar(u, req.body), 201);
+      const aviso = /^\/avisos\/(\d+)\/ler$/.exec(caminho);
+      if (aviso && req.method === 'POST') return this.ok(this.comunicacao.ler(u, Number(aviso[1])));
+      if (caminho === '/solicitacoes' && req.method === 'GET') return this.ok(this.comunicacao.solicitacoes(u));
+      if (caminho === '/solicitacoes' && req.method === 'POST') return this.ok(this.comunicacao.abrir(u, req.body), 201);
+      const solicitacao = /^\/solicitacoes\/(\d+)(?:\/historico)?$/.exec(caminho);
+      if (solicitacao && req.method === 'GET') return this.ok(this.comunicacao.historico(u, Number(solicitacao[1])));
+      if (solicitacao && req.method === 'PUT') return this.ok(this.comunicacao.responder(u, Number(solicitacao[1]), req.body));
       const avaliacao = await this.avaliacoes.handle(request, u);
       if (avaliacao) return avaliacao;
       if (caminho === '/atividades' && req.method === 'GET') return this.ok(this.aprendizagem.listar(u));
@@ -136,7 +156,7 @@ export class AplicacaoCentral {
         if (req.method === 'POST' && mensalidade[2] === 'estornar') return this.ok(this.financeiro.estornar(u, id, req.body));
         if (req.method === 'POST' && mensalidade[2] === 'ajustar') return this.ok(this.financeiro.ajustar(u, id, req.body));
       }
-      if (caminho === '/financeiro/configuracoes')
+      if (caminho === '/financeiro/configuracoes' && ['GET', 'PUT'].includes(req.method))
         return this.ok(req.method === 'GET' ? this.financeiro.configuracao(u) : this.financeiro.configurar(u, req.body));
       if (caminho === '/financeiro/resumo' && req.method === 'GET')
         return this.ok(

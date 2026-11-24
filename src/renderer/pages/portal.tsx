@@ -1,4 +1,5 @@
-import { Routes, Route, useLocation, Link } from 'react-router-dom';
+import Comunicacao from './comunicacao';
+import { Routes, Route, useLocation, Link, useNavigate } from 'react-router-dom';
 import { AvaliacaoDetalhe, AvaliacaoNova } from './avaliacao-detalhe';
 import MinhasAvaliacoes from './minhas-avaliacoes';
 import Avaliacoes from './avaliacoes';
@@ -18,7 +19,12 @@ type Turma = { id: number; nome: string; idioma_nome: string; nivel: number; ano
 export default function Portal() {
   const { usuario, sair } = useSessao();
   const location = useLocation();
-  const [aba, setAba] = useState('turmas');
+  const [aba, alterarAba] = useState('turmas');
+  const navigate = useNavigate();
+  const setAba = (valor: string) => {
+    alterarAba(valor);
+    if (location.pathname.startsWith('/avaliacoes')) navigate('/');
+  };
   const q = useQuery(() => api.get<Turma[]>('/portal/turmas'), []);
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6">
@@ -32,6 +38,9 @@ export default function Portal() {
         </Button>
       </header>
       <nav className="flex flex-wrap gap-2" aria-label="Minha área">
+        <Button variant="outline" onClick={() => setAba('comunicacao')}>
+          Avisos e secretaria
+        </Button>
         <Button variant={aba === 'avaliacoes' ? 'default' : 'outline'} onClick={() => setAba('avaliacoes')}>
           Avaliações e feedback
         </Button>
@@ -59,6 +68,8 @@ export default function Portal() {
         ) : (
           <ProfessorAvaliacoes />
         )
+      ) : aba === 'comunicacao' ? (
+        <Comunicacao />
       ) : aba === 'atividades' ? (
         <Atividades />
       ) : aba === 'biblioteca' ? (

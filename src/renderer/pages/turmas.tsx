@@ -2,7 +2,7 @@
 // e detalhe em #/turmas/:id com alunos e materiais didáticos.
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Eye, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -81,9 +81,9 @@ function FormTurma({
       horario: turma?.horario ?? '',
     },
   });
-  const idiomaId = Number(form.watch('idioma_id')) || null;
+  const idiomaId = Number(useWatch({ control: form.control, name: 'idioma_id' })) || null;
   const lista = aptos(profs, idiomaId, turma?.professor_id ?? null);
-  const profAtual = form.watch('professor_id');
+  const profAtual = useWatch({ control: form.control, name: 'professor_id' });
   // trocou o idioma e o professor escolhido não leciona nele: limpa a escolha
   useEffect(() => {
     if (profAtual && !lista.some((p) => String(p.id) === profAtual)) form.setValue('professor_id', '');

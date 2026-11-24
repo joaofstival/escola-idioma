@@ -6,6 +6,7 @@ export class RepositorioAcademicoSqlite implements RepositorioAcademico {
     this.db = db;
   }
   turmas(c: ContextoAcademico): VinculoAcademico[] {
+    if (c.papel === 'financeiro') return [];
     const filtro =
       c.papel === 'aluno'
         ? "EXISTS (SELECT 1 FROM matriculas m WHERE m.turma_id=t.id AND m.aluno_id=? AND m.status='ativa')"

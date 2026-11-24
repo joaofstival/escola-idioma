@@ -27,7 +27,13 @@ interface Item {
   icone: LucideIcon;
 }
 export const NAVEGACAO: { grupo: string; itens: Item[] }[] = [
-  { grupo: 'Geral', itens: [{ rota: 'dashboard', rotulo: 'Painel', icone: LayoutDashboard }] },
+  {
+    grupo: 'Geral',
+    itens: [
+      { rota: 'dashboard', rotulo: 'Painel', icone: LayoutDashboard },
+      { rota: 'comunicacao', rotulo: 'Avisos e secretaria', icone: ScrollText },
+    ],
+  },
   {
     grupo: 'Cadastros',
     itens: [
@@ -70,10 +76,20 @@ function Navegacao({ aoNavegar }: { aoNavegar?: () => void }) {
   const permitida = (rota: string) =>
     usuario?.papel === 'admin' ||
     (usuario?.papel === 'financeiro'
-      ? ['financeiro', 'cotacao', 'traducao'].includes(rota)
-      : ['alunos', 'professores', 'idiomas', 'turmas', 'matriculas', 'materiais', 'biblioteca', 'agenda', 'cotacao', 'traducao'].includes(
-          rota,
-        ));
+      ? ['financeiro', 'cotacao', 'traducao', 'comunicacao'].includes(rota)
+      : [
+          'alunos',
+          'professores',
+          'idiomas',
+          'turmas',
+          'matriculas',
+          'materiais',
+          'biblioteca',
+          'agenda',
+          'cotacao',
+          'traducao',
+          'comunicacao',
+        ].includes(rota));
   return (
     <nav aria-label="Principal" className="flex flex-col gap-4 px-3 pb-4">
       {NAVEGACAO.map((g) => (

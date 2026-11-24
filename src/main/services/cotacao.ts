@@ -41,9 +41,10 @@ export interface CotacaoOpcoes {
   fetch?: FetchFn;
   agora?: () => number;
   timeoutMs?: number;
+  persistencia?: { carregar: () => [string, EntradaCache][]; salvar: (moeda: string, valor: EntradaCache) => void };
 }
 
-interface EntradaCache {
+export interface EntradaCache {
   cotacao: Cotacao;
   obtidoEm: number;
 }
@@ -103,9 +104,12 @@ export class ServicoCotacao {
   private readonly fetchFn: FetchFn;
   private readonly agora: () => number;
   private readonly timeoutMs: number;
+  private readonly persistencia: CotacaoOpcoes['persistencia'];
   private readonly cache = new Map<string, EntradaCache>();
 
   constructor(op: CotacaoOpcoes = {}) {
+    this.persistencia = op.persistencia;
+    if (op.persistencia) for (const [m, v] of op.persistencia.carregar()) this.cache.set(m, v);
     this.fetchFn = op.fetch ?? fetchPadrao();
     this.agora = op.agora ?? Date.now;
     this.timeoutMs = op.timeoutMs ?? TIMEOUT_PADRAO_MS;
@@ -231,7 +235,9 @@ export class ServicoCotacao {
         const r = reserva?.get(m);
         const ok = p.tipo === 'ok' ? p : r?.tipo === 'ok' ? r : null;
         if (ok) {
-          this.cache.set(m, { cotacao: ok.cotacao, obtidoEm: agora });
+          const entrada = { cotacao: ok.cotacao, obtidoEm: agora };
+          this.cache.set(m, entrada);
+          this.persistencia?.salvar(m, entrada);
           cotacoes[m] = ok.cotacao;
           continue;
         }

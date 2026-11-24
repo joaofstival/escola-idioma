@@ -1,3 +1,4 @@
+import Comunicacao from '@/pages/comunicacao';
 import Atividades from '@/pages/atividades';
 import Biblioteca from '@/pages/biblioteca';
 import Agenda from '@/pages/agenda';
@@ -26,13 +27,23 @@ function RotasAdministrativas() {
   const { usuario } = useSessao();
   const { pathname } = useLocation();
   const recurso = pathname.split('/')[1];
-  if (usuario?.papel === 'financeiro' && !['financeiro', 'cotacao', 'traducao'].includes(recurso))
+  if (usuario?.papel === 'financeiro' && !['financeiro', 'cotacao', 'traducao', 'comunicacao'].includes(recurso))
     return <Navigate to="/financeiro" replace />;
   if (
     usuario?.papel === 'secretaria' &&
-    !['alunos', 'professores', 'idiomas', 'turmas', 'matriculas', 'materiais', 'biblioteca', 'agenda', 'cotacao', 'traducao'].includes(
-      recurso,
-    )
+    ![
+      'alunos',
+      'professores',
+      'idiomas',
+      'turmas',
+      'matriculas',
+      'materiais',
+      'biblioteca',
+      'agenda',
+      'cotacao',
+      'traducao',
+      'comunicacao',
+    ].includes(recurso)
   )
     return <Navigate to="/alunos" replace />;
 
@@ -41,6 +52,7 @@ function RotasAdministrativas() {
       <Routes>
         <Route element={<Shell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="comunicacao" element={<Comunicacao />} />
           <Route path="atividades" element={<Atividades />} />
           <Route path="biblioteca" element={<Biblioteca />} />
           <Route path="agenda" element={<Agenda />} />
