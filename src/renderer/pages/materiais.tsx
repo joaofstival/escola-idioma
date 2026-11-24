@@ -2,7 +2,7 @@
 // Links http(s) abrem no navegador padrão (o processo main intercepta target=_blank).
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   BookOpen,
@@ -95,6 +95,7 @@ function FormMaterial({
       descricao: mat?.descricao ?? '',
     },
   });
+  const tipo = useWatch({ control: form.control, name: 'tipo' });
   return (
     <FormDialog
       titulo={mat ? 'Editar material' : 'Novo material'}
@@ -131,7 +132,7 @@ function FormMaterial({
       <CampoTexto<Valores>
         nome="referencia"
         rotulo="Referência"
-        obrigatorio={form.watch('tipo') === 'link'}
+        obrigatorio={tipo === 'link'}
         maxLength={500}
         className="sm:col-span-2"
         placeholder="ISBN, local na biblioteca ou endereço https://…"

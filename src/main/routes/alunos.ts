@@ -1,3 +1,4 @@
+import { consultarPagina } from '../paginacao.ts';
 // Rotas de alunos. O histórico (GET /alunos/:id/historico) fica em routes/historico.ts.
 import type { Db } from '../db.ts';
 import type { Router } from '../router.ts';
@@ -45,9 +46,11 @@ export function register(router: Router, db: Db): void {
       where.push('ativo = :ativo');
       p.ativo = ativo;
     }
-    return db.all<Aluno>(
-      `SELECT ${COLUNAS} FROM alunos ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY nome COLLATE NOCASE`,
+    return consultarPagina<Aluno>(
+      db,
+      `SELECT ${COLUNAS} FROM alunos ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY nome COLLATE NOCASE,id`,
       p,
+      query,
     );
   });
 

@@ -17,8 +17,8 @@ describe('registrar pagamento', () => {
     instalarEscola({});
     abrir();
     expect(await screen.findByLabelText('Valor pago (R$)')).toHaveValue('309.00');
-    expect(screen.getByText('Multa (2%)')).toBeInTheDocument();
-    expect(screen.getByText(/Juros 1% a\.m\. \(30 dias\)/)).toBeInTheDocument();
+    expect(screen.getByText('Multa da política contratada')).toBeInTheDocument();
+    expect(screen.getByText(/Juros \(30 dias\)/)).toBeInTheDocument();
   });
 
   test('valor zero é recusado na tela, ligado ao campo, e nada é enviado', async () => {
@@ -43,6 +43,7 @@ describe('registrar pagamento', () => {
       valor_pago: 309,
       forma_pagamento: 'boleto',
       data_pagamento: '2026-04-09',
+      operacao_id: expect.any(String),
     });
   });
 
@@ -53,4 +54,17 @@ describe('registrar pagamento', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Mensalidade já está paga');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+});
+
+test('pagamento parcial é enviado com identificador de operação', async () => {
+  const api = instalarEscola({ 'POST /mensalidades/1/pagar': { data: { ...atrasada, status: 'pendente', parcial: true, valor_pago: 1 } } });
+  abrir();
+  const valor = await screen.findByLabelText('Valor pago (R$)');
+  await userEvent.clear(valor);
+  await userEvent.type(valor, '1');
+  await userEvent.click(screen.getByRole('button', { name: 'Registrar pagamento' }));
+  await waitFor(() => expect(api.de('POST', '/mensalidades/1/pagar')).toHaveLength(1));
+  expect(api.de('POST', '/mensalidades/1/pagar')[0].corpo).toEqual(
+    expect.objectContaining({ valor_pago: 1, operacao_id: expect.any(String) }),
+  );
 });

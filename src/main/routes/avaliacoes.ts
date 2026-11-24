@@ -18,7 +18,7 @@ import { MODELOS_AVALIACAO } from '../data/modelos-avaliacao.ts';
 import type { Avaliacao, EvaluationForm, ExportacaoCsv, RespostaAvaliacao, ResultadosAvaliacao } from '../../shared/types.ts';
 
 const SELECT_AVALIACAO = `
-  SELECT av.id, av.turma_id, t.nome AS turma_nome, av.titulo, av.descricao, av.form, av.criado_em,
+  SELECT av.id, av.turma_id, t.nome AS turma_nome, av.titulo, av.descricao, av.form, av.criado_em, av.autor_id, av.publicada, av.finalidade,
          (SELECT count(*) FROM avaliacao_respostas r WHERE r.avaliacao_id = av.id) AS total_respostas
   FROM avaliacoes av JOIN turmas t ON t.id = av.turma_id`;
 

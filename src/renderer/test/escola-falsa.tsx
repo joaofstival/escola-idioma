@@ -1,7 +1,7 @@
 // Borda dos testes de interface: window.escola.request é a única coisa falsa (o contrato REST já é testado no backend).
 import type { ReactElement } from 'react';
 import { render } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { vi } from 'vitest';
 import { Toaster } from '@/components/ui/sonner';
 import type { ApiResponse } from '../../shared/types.ts';
@@ -32,7 +32,13 @@ export function instalarEscola(rotas: Rotas) {
       ? { ok: true, status: 200, data: out.data }
       : { ok: false, status: out.status, erro: out.erro, detalhes: 'detalhes' in out ? out.detalhes : undefined };
   });
-  (window as unknown as { escola: unknown }).escola = { request, saveFile: vi.fn(), exportarBackup: vi.fn(), restaurarBackup: vi.fn() };
+  (window as unknown as { escola: unknown }).escola = {
+    request,
+    saveBinary: vi.fn(),
+    saveFile: vi.fn(),
+    exportarBackup: vi.fn(),
+    restaurarBackup: vi.fn(),
+  };
   return {
     chamadas,
     request,
@@ -42,9 +48,21 @@ export function instalarEscola(rotas: Rotas) {
 
 export function renderizar(ui: ReactElement, rota = '/') {
   return render(
-    <MemoryRouter initialEntries={[rota]}>
-      {ui}
-      <Toaster />
-    </MemoryRouter>,
+    <RouterProvider
+      router={createMemoryRouter(
+        [
+          {
+            path: '*',
+            element: (
+              <>
+                {ui}
+                <Toaster />
+              </>
+            ),
+          },
+        ],
+        { initialEntries: [rota] },
+      )}
+    />,
   );
 }

@@ -67,12 +67,16 @@ test('migration pendente em arquivo existente: copia antes (pre-migracao-v<N>) e
     const db = await openDb({ file, migrations: migs });
     assert.equal(versao(db), ULTIMA_VERSAO + 1);
     db.close();
-    const copia = `${file}.pre-migracao-v${ULTIMA_VERSAO}`;
+    const copia = `${file}.pre-migracao-v1`;
     assert.ok(existsSync(copia), 'cópia criada');
     assert.equal(contar(copia).alunos, 25, 'cópia é o estado de antes');
     const c = new DatabaseSync(copia, { readOnly: true });
     assert.equal(c.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name = 'nova'").get()!.n, 0);
-    assert.equal(Number((c.prepare('PRAGMA user_version').get() as { user_version: number }).user_version), ULTIMA_VERSAO);
+    assert.equal(
+      Number((c.prepare('PRAGMA user_version').get() as { user_version: number }).user_version),
+      1,
+      'versão original da fixture',
+    );
     c.close();
   });
 });
@@ -81,7 +85,7 @@ test('cópia pre-migracao existente não é sobrescrita', async () => {
   await comPasta(async (dir) => {
     const file = join(dir, 'escola.db');
     copyFileSync(FIXTURE_V1, file);
-    const copia = `${file}.pre-migracao-v${ULTIMA_VERSAO}`;
+    const copia = `${file}.pre-migracao-v1`;
     copyFileSync(FIXTURE_V1, copia);
     const d = new DatabaseSync(copia);
     d.exec("INSERT INTO alunos (nome) VALUES ('marca')");

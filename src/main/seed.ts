@@ -1,4 +1,4 @@
-// Dados de exemplo. A seed só popula banco vazio (idempotente). `--seed` limpa e recria (ver main.ts).
+// Dados de exemplo. A seed só popula banco vazio (idempotente); usada explicitamente por server:demo.
 // A parte 3 acrescenta matrículas, mensalidades e materiais via ETAPAS_EXTRAS (seed-academico.ts).
 import type { Db } from './db.ts';
 import { seedMateriais, seedMatriculas } from './seed-academico.ts';

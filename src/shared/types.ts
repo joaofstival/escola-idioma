@@ -19,6 +19,7 @@ export interface EscolaBridge {
   request<T = unknown>(req: ApiRequest): Promise<ApiResponse<T>>;
   /** Abre diálogo "Salvar como" e grava o conteúdo. Retorna o caminho ou null se cancelado. */
   saveFile(defaultName: string, content: string): Promise<string | null>;
+  saveBinary(defaultName: string, base64: string): Promise<string | null>;
   /** Backup: "Salvar como" nativo e cópia consistente do banco. */
   exportarBackup(): Promise<ResultadoBackupIpc>;
   /** Backup: escolhe um arquivo .db, valida, pede confirmação nativa e reabre o app com os dados restaurados. */
@@ -31,6 +32,13 @@ export interface BackupInfo {
   tamanho: number;
   criadoEm: string;
   tipo: 'auto' | 'manual';
+}
+
+/** Saúde de backup (GET /backups/estado), sem caminhos ou detalhes internos. */
+export interface EstadoBackup {
+  ultimaTentativa: string | null;
+  ultimoSucesso: string | null;
+  erro: string | null;
 }
 
 /** Resultado de exportarBackup/restaurarBackup. `cancelado` = o usuário fechou o diálogo (não é erro). */
@@ -130,6 +138,9 @@ export interface Material {
 
 export type MensalidadeStatus = 'pendente' | 'paga' | 'cancelada';
 export interface Mensalidade {
+  saldo_centavos?: number;
+  pago_centavos?: number;
+  parcial?: boolean;
   id: number;
   matricula_id: number;
   aluno_id: number;
@@ -165,6 +176,7 @@ export interface Inadimplente {
 }
 
 export interface HistoricoAluno {
+  financeiro_restrito?: boolean;
   aluno: Aluno;
   matriculas: Matricula[];
   mensalidades: Mensalidade[];
@@ -273,6 +285,9 @@ export interface EvaluationForm {
 }
 
 export interface Avaliacao {
+  publicada?: boolean | number;
+  finalidade?: string;
+  autor_id?: number | null;
   id: number;
   turma_id: number;
   turma_nome?: string;

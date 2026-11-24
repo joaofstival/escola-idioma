@@ -2,12 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main, modernizar-stack]
+    branches: [main, developer, modernizar-stack, 'feat/**', 'codex/**']
   pull_request:
 
 jobs:
   qualidade:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

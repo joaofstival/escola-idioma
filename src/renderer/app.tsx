@@ -1,4 +1,12 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import Comunicacao from '@/pages/comunicacao';
+import Atividades from '@/pages/atividades';
+import Biblioteca from '@/pages/biblioteca';
+import Agenda from '@/pages/agenda';
+import { ProvedorSessao, useSessao } from '@/auth/sessao';
+import Login from '@/pages/login';
+import Portal from '@/pages/portal';
+import Usuarios from '@/pages/usuarios';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Shell } from '@/components/shell';
 import { Toaster } from '@/components/ui/sonner';
 import Alunos from '@/pages/alunos';
@@ -15,12 +23,40 @@ import Professores from '@/pages/professores';
 import Traducao from '@/pages/traducao';
 import Turmas from '@/pages/turmas';
 
-export default function App() {
+function RotasAdministrativas() {
+  const { usuario } = useSessao();
+  const { pathname } = useLocation();
+  const recurso = pathname.split('/')[1];
+  if (usuario?.papel === 'financeiro' && !['financeiro', 'cotacao', 'traducao', 'comunicacao'].includes(recurso))
+    return <Navigate to="/financeiro" replace />;
+  if (
+    usuario?.papel === 'secretaria' &&
+    ![
+      'alunos',
+      'professores',
+      'idiomas',
+      'turmas',
+      'matriculas',
+      'materiais',
+      'biblioteca',
+      'agenda',
+      'cotacao',
+      'traducao',
+      'comunicacao',
+    ].includes(recurso)
+  )
+    return <Navigate to="/alunos" replace />;
+
   return (
     <>
       <Routes>
         <Route element={<Shell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="comunicacao" element={<Comunicacao />} />
+          <Route path="atividades" element={<Atividades />} />
+          <Route path="biblioteca" element={<Biblioteca />} />
+          <Route path="agenda" element={<Agenda />} />
+          <Route path="usuarios" element={<Usuarios />} />
           <Route path="dashboard" element={<Painel />} />
           <Route path="alunos/:id?" element={<Alunos />} />
           <Route path="professores" element={<Professores />} />
@@ -40,5 +76,19 @@ export default function App() {
       </Routes>
       <Toaster position="bottom-right" />
     </>
+  );
+}
+
+function Entrada() {
+  const { usuario, carregando } = useSessao();
+  if (carregando) return <p className="p-8">Conectando à escola…</p>;
+  if (!usuario) return <Login />;
+  return ['aluno', 'professor'].includes(usuario.papel) ? <Portal /> : <RotasAdministrativas />;
+}
+export default function App() {
+  return (
+    <ProvedorSessao>
+      <Entrada />
+    </ProvedorSessao>
   );
 }

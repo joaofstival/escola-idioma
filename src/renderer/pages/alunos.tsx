@@ -1,3 +1,6 @@
+import type { Pagina } from '../../shared/contracts/paginacao';
+import { Paginacao } from '@/components/paginacao';
+import { ConsultaCep } from '@/components/consulta-cep';
 // Alunos: lista com busca e filtro, cadastro em diálogo, inativar/reativar e detalhe com histórico (#/alunos/:id).
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -89,6 +92,7 @@ function FormAluno({ aluno, aoFechar, aoSalvar }: { aluno: Aluno | null; aoFecha
       <CampoTexto<Valores> nome="documento" rotulo="Documento (CPF, RNE ou passaporte)" maxLength={30} />
       <CampoTexto<Valores> nome="email" rotulo="E-mail" type="email" maxLength={150} />
       <CampoTexto<Valores> nome="telefone" rotulo="Telefone" type="tel" maxLength={30} />
+      <ConsultaCep preencher={(v) => form.setValue('endereco', v, { shouldDirty: true })} />
       <CampoTexto<Valores> nome="endereco" rotulo="Endereço" maxLength={300} className="sm:col-span-2" />
       <CampoTexto<Valores> nome="pais_origem" rotulo="País de origem" maxLength={60} placeholder="Ex.: Brasil, Argentina" />
       <CampoSelect<Valores> nome="moeda_origem" rotulo="Moeda de origem" opcoes={moedas.map((m) => ({ valor: m, rotulo: m }))} />
@@ -140,17 +144,25 @@ function Lista() {
   const navigate = useNavigate();
   const [texto, setTexto] = useState('');
   const [busca, setBusca] = useState('');
-  const [ativo, setAtivo] = useState('true');
+  const [ativo, alterarAtivo] = useState('true');
+  const [pagina, setPagina] = useState(1);
+  const setAtivo = (valor: string) => {
+    alterarAtivo(valor);
+    setPagina(1);
+  };
   // busca com espera: só consulta 300 ms depois de parar de digitar
   useEffect(() => {
-    const t = setTimeout(() => setBusca(texto.trim()), 300);
+    const t = setTimeout(() => {
+      setBusca(texto.trim());
+      setPagina(1);
+    }, 300);
     return () => clearTimeout(t);
   }, [texto]);
 
-  const lista = useQuery(() => api.get<Aluno[]>('/alunos', { busca, ativo }), [busca, ativo]);
+  const lista = useQuery(() => api.get<Pagina<Aluno>>('/alunos', { busca, ativo, pagina }), [busca, ativo, pagina]);
   const [editando, setEditando] = useState<Aluno | 'novo' | null>(null);
   const { pedir, dialogo } = useAlternarAtivo(lista.reload);
-  const alunos = lista.data;
+  const alunos = lista.data?.itens;
 
   const botaoNovo = (
     <Button onClick={() => setEditando('novo')}>
@@ -161,7 +173,7 @@ function Lista() {
   return (
     <>
       <PageHeader title="Alunos">{botaoNovo}</PageHeader>
-      <BarraFiltros total={alunos ? `${alunos.length} aluno(s)` : undefined}>
+      <BarraFiltros total={lista.data ? `${lista.data.total} aluno(s)` : undefined}>
         <div className="flex flex-col gap-2">
           <Label htmlFor="busca-alunos">Buscar</Label>
           <div className="relative">
@@ -238,6 +250,19 @@ function Lista() {
                       acoes={[
                         { rotulo: 'Ver histórico', icone: UserRound, aoClicar: () => navigate(`/alunos/${a.id}`) },
                         { rotulo: 'Editar aluno', icone: Pencil, aoClicar: () => setEditando(a) },
+                        {
+                          rotulo: 'Apagar cadastro sem histórico',
+                          destrutiva: true,
+                          aoClicar: async () => {
+                            if (!window.confirm(`Apagar cadastro de ${a.nome}? Registros com vínculos serão recusados.`)) return;
+                            try {
+                              await api.del(`/alunos/${a.id}`);
+                              lista.reload();
+                            } catch (err) {
+                              toast.error(mensagemErro(err));
+                            }
+                          },
+                        },
                         a.ativo
                           ? { rotulo: 'Inativar aluno', icone: PowerOff, destrutiva: true, aoClicar: () => pedir(a) }
                           : { rotulo: 'Reativar aluno', icone: Power, aoClicar: () => pedir(a) },
@@ -251,6 +276,7 @@ function Lista() {
         </Table>
       )}
 
+      <Paginacao pagina={pagina} total={lista.data?.total ?? 0} mudar={setPagina} carregando={lista.loading} />
       {editando && <FormAluno aluno={editando === 'novo' ? null : editando} aoFechar={() => setEditando(null)} aoSalvar={lista.reload} />}
       {dialogo}
     </>
@@ -376,21 +402,23 @@ function Detalhe({ id }: { id: number }) {
         <Dado rotulo="Moeda de origem" valor={aluno.moeda_origem} />
       </dl>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-3">
-        <Kpi
-          rotulo="Pago"
-          valor={brl(resumo.pago)}
-          tom="text-success-deep"
-          dica={conv(resumo.pago) ? `≈ ${conv(resumo.pago)}` : undefined}
-        />
-        <Kpi rotulo="A vencer" valor={brl(resumo.pendente)} dica={conv(resumo.pendente) ? `≈ ${conv(resumo.pendente)}` : undefined} />
-        <Kpi
-          rotulo="Em atraso (valor original)"
-          valor={brl(resumo.atrasado)}
-          tom={resumo.atrasado ? 'text-danger-deep' : ''}
-          dica={conv(resumo.atrasado) ? `≈ ${conv(resumo.atrasado)}` : undefined}
-        />
-      </div>
+      {!h.financeiro_restrito && (
+        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+          <Kpi
+            rotulo="Pago"
+            valor={brl(resumo.pago)}
+            tom="text-success-deep"
+            dica={conv(resumo.pago) ? `≈ ${conv(resumo.pago)}` : undefined}
+          />
+          <Kpi rotulo="A vencer" valor={brl(resumo.pendente)} dica={conv(resumo.pendente) ? `≈ ${conv(resumo.pendente)}` : undefined} />
+          <Kpi
+            rotulo="Em atraso (valor original)"
+            valor={brl(resumo.atrasado)}
+            tom={resumo.atrasado ? 'text-danger-deep' : ''}
+            dica={conv(resumo.atrasado) ? `≈ ${conv(resumo.atrasado)}` : undefined}
+          />
+        </div>
+      )}
 
       <section className="mb-8" aria-labelledby="h-mat">
         <h2 id="h-mat" className="mb-3 text-base font-semibold">
@@ -436,64 +464,66 @@ function Detalhe({ id }: { id: number }) {
         )}
       </section>
 
-      <section aria-labelledby="h-mens">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="h-mens" className="text-base font-semibold">
-            Mensalidades
-          </h2>
-          {estrangeiro && (
-            <span className={`text-xs ${cot.error ? 'text-warning-deep' : 'text-muted-foreground'}`}>
-              {cot.loading && !cot.data
-                ? `Convertendo para ${moeda}…`
-                : cot.error || !cot.data || !taxa
-                  ? `Cotação para ${moeda} indisponível no momento; valores somente em BRL.`
-                  : `Cotação: 1 BRL = ${dinheiro(taxa, moeda)} · ${cot.data.fonte} · ${data(cot.data.data)}${cot.data.desatualizada ? ' (desatualizada)' : ''}`}
-            </span>
+      {!h.financeiro_restrito && (
+        <section aria-labelledby="h-mens">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="h-mens" className="text-base font-semibold">
+              Mensalidades
+            </h2>
+            {estrangeiro && (
+              <span className={`text-xs ${cot.error ? 'text-warning-deep' : 'text-muted-foreground'}`}>
+                {cot.loading && !cot.data
+                  ? `Convertendo para ${moeda}…`
+                  : cot.error || !cot.data || !taxa
+                    ? `Cotação para ${moeda} indisponível no momento; valores somente em BRL.`
+                    : `Cotação: 1 BRL = ${dinheiro(taxa, moeda)} · ${cot.data.fonte} · ${data(cot.data.data)}${cot.data.desatualizada ? ' (desatualizada)' : ''}`}
+              </span>
+            )}
+          </div>
+          {mensalidades.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Competência</TableHead>
+                  <TableHead className="text-right">Vencimento</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">Pago / atualizado</TableHead>
+                  {estrangeiro && <TableHead className="text-right">Em {moeda}</TableHead>}
+                  <TableHead>Situação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mensalidades.map((m) => {
+                  const rel = valorRelevante(m);
+                  return (
+                    <TableRow key={m.id} className={m.status === 'cancelada' ? 'text-muted-foreground line-through' : ''}>
+                      <TableCell title={m.turma_nome}>
+                        {competencia(m.competencia)}
+                        <div className="text-xs text-muted-foreground">{m.idioma_nome ?? ''}</div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{data(m.vencimento)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{brl(m.valor)}</TableCell>
+                      <TableCell
+                        className={`text-right tabular-nums ${m.atrasada ? 'text-danger-deep' : ''}`}
+                        title={m.atrasada ? `Multa ${brl(m.multa)} + juros ${brl(m.juros)}` : undefined}
+                      >
+                        {rel === null ? '—' : brl(rel)}
+                        {m.atrasada && <div className="text-xs text-muted-foreground">com multa e juros</div>}
+                      </TableCell>
+                      {estrangeiro && <TableCell className="text-right tabular-nums">{rel === null ? '—' : (conv(rel) ?? '—')}</TableCell>}
+                      <TableCell>
+                        <StatusMensalidade m={m} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <EstadoVazio titulo="Nenhuma mensalidade gerada para este aluno" />
           )}
-        </div>
-        {mensalidades.length ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Competência</TableHead>
-                <TableHead className="text-right">Vencimento</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="text-right">Pago / atualizado</TableHead>
-                {estrangeiro && <TableHead className="text-right">Em {moeda}</TableHead>}
-                <TableHead>Situação</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mensalidades.map((m) => {
-                const rel = valorRelevante(m);
-                return (
-                  <TableRow key={m.id} className={m.status === 'cancelada' ? 'text-muted-foreground line-through' : ''}>
-                    <TableCell title={m.turma_nome}>
-                      {competencia(m.competencia)}
-                      <div className="text-xs text-muted-foreground">{m.idioma_nome ?? ''}</div>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{data(m.vencimento)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{brl(m.valor)}</TableCell>
-                    <TableCell
-                      className={`text-right tabular-nums ${m.atrasada ? 'text-danger-deep' : ''}`}
-                      title={m.atrasada ? `Multa ${brl(m.multa)} + juros ${brl(m.juros)}` : undefined}
-                    >
-                      {rel === null ? '—' : brl(rel)}
-                      {m.atrasada && <div className="text-xs text-muted-foreground">com multa e juros</div>}
-                    </TableCell>
-                    {estrangeiro && <TableCell className="text-right tabular-nums">{rel === null ? '—' : (conv(rel) ?? '—')}</TableCell>}
-                    <TableCell>
-                      <StatusMensalidade m={m} />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        ) : (
-          <EstadoVazio titulo="Nenhuma mensalidade gerada para este aluno" />
-        )}
-      </section>
+        </section>
+      )}
 
       {editando && <FormAluno aluno={aluno} aoFechar={() => setEditando(false)} aoSalvar={q.reload} />}
       {dialogo}

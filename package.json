@@ -10,12 +10,17 @@
     "start": "npm run build && electron .",
     "typecheck": "node node_modules/typescript7/bin/tsc --noEmit -p tsconfig.json && node node_modules/typescript7/bin/tsc --noEmit -p tsconfig.renderer.json",
     "test": "node --test \"src/**/*.test.ts\"",
-    "seed": "npm run build && electron . --seed",
+    "seed": "npm run server:demo",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:ui": "vitest run"
+    "test:ui": "vitest run",
+    "server": "node src/server/bootstrap.ts",
+    "server:admin": "node src/server/setup-admin.ts",
+    "server:demo": "node src/server/demo.ts",
+    "server:ops": "node src/server/operacoes.ts",
+    "dist:win": "npm run build && electron-builder --win nsis --x64"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",
@@ -45,6 +50,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.3.0",
     "electron": "45.3.3",
+    "electron-builder": "26.18.0",
     "esbuild": "0.28.2",
     "eslint": "9.39.5",
     "eslint-plugin-jsx-a11y": "6.10.2",
@@ -62,5 +68,38 @@
   },
   "allowScripts": {
     "esbuild@0.28.2": true
+  },
+  "build": {
+    "appId": "br.escola.idiomas",
+    "productName": "Escola Idiomas",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/main.js",
+      "dist/preload.cjs",
+      "dist/renderer/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Escola-Idiomas-${version}-Setup.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "runAfterFinish": false
+    }
   }
 }

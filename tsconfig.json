@@ -13,7 +13,9 @@
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": false,
     "forceConsistentCasingInFileNames": true,
-    "paths": { "@/*": ["./src/renderer/*"] }
+    "paths": {
+      "@/*": ["./src/renderer/*"]
+    }
   },
-  "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts", "vite.config.ts"]
+  "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts", "vite.config.ts", "src/server/**/*.ts"]
 }

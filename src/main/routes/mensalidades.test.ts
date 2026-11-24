@@ -67,10 +67,10 @@ test('pagar (valor atualizado por padrão, ou valor informado) e estornar', asyn
   const abr = idDe(alice.id, '2026-04');
   const p3 = await api.ok('POST', `/mensalidades/${abr}/pagar`, {
     forma_pagamento: 'dinheiro',
-    valor_pago: '250,50',
+    valor_pago: '307,00',
     data_pagamento: '2026-04-20',
   });
-  assert.equal(p3.valor_pago, 250.5);
+  assert.equal(p3.valor_pago, 307, 'valor informado inclui encargos da data do pagamento');
 
   const ja = await api.falha('POST', `/mensalidades/${fev}/pagar`, { forma_pagamento: 'pix' }, 422);
   assert.match(ja.erro, /já está paga/);
@@ -103,7 +103,7 @@ test('resumo financeiro do ano, inadimplentes, histórico do aluno e painel', as
   await api.ok('POST', `/mensalidades/${idDe(bruno.id, '2026-06')}/pagar`, {
     forma_pagamento: 'pix',
     valor_pago: 280,
-    data_pagamento: '2026-06-12',
+    data_pagamento: '2026-06-10',
   });
   await api.ok('PUT', `/matriculas/${mB.id}/cancelar`); // jul–dez do Bruno canceladas
 
@@ -149,4 +149,41 @@ test('resumo financeiro do ano, inadimplentes, histórico do aluno e painel', as
     inadimplentes: 1,
     ano: 2026,
   });
+});
+
+test('pagamento insuficiente não quita a mensalidade nem altera o histórico', async () => {
+  const { api, alice, idDe } = await cenario();
+  const id = idDe(alice.id, '2026-07');
+  const antes = api.db.get('SELECT * FROM mensalidades WHERE id = ?', [id]);
+  const erro = await api.falha(
+    'POST',
+    `/mensalidades/${id}/pagar`,
+    {
+      valor_pago: 1,
+      forma_pagamento: 'pix',
+      data_pagamento: '2026-06-15',
+    },
+    422,
+  );
+  assert.match(erro.erro, /insuficiente/i);
+  const vencida = idDe(alice.id, '2026-02');
+  await api.falha(
+    'POST',
+    `/mensalidades/${vencida}/pagar`,
+    {
+      valor_pago: 300,
+      forma_pagamento: 'pix',
+      data_pagamento: '2026-06-15',
+    },
+    422,
+  );
+  assert.equal(api.db.get<{ status: string }>('SELECT status FROM mensalidades WHERE id = ?', [vencida])?.status, 'pendente');
+  assert.deepEqual(api.db.get('SELECT * FROM mensalidades WHERE id = ?', [id]), antes);
+  const quitada = await api.ok('POST', `/mensalidades/${id}/pagar`, {
+    valor_pago: '300,00',
+    forma_pagamento: 'pix',
+    data_pagamento: '2026-06-15',
+  });
+  assert.equal(quitada.status, 'paga');
+  api.db.close();
 });

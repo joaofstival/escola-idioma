@@ -1,0 +1,8 @@
+# Substitua o domínio e aponte seu DNS ao servidor.
+escola.exemplo.com {
+    encode zstd gzip
+    request_body {
+        max_size 10MB
+    }
+    reverse_proxy 127.0.0.1:3489
+}
