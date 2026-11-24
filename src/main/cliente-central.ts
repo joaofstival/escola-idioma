@@ -41,6 +41,8 @@ export class ClienteCentral {
       return resultado;
     } catch {
       return { ok: false, status: 503, erro: 'Não foi possível conectar à escola. Verifique a conexão e tente novamente.' };
+    } finally {
+      if (req.path === '/auth/logout') this.token = undefined;
     }
   }
 }

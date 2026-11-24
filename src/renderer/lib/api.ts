@@ -27,6 +27,7 @@ export function qs(params: Params = {}): string {
 
 async function request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
   const res = await window.escola.request<T>({ method, path, body });
+  if (!res.ok && res.status === 401 && !path.startsWith('/auth/')) window.dispatchEvent(new Event('escola:session-expired'));
   if (!res.ok) throw new ApiError(res.status, res.erro, res.detalhes);
   return res.data;
 }

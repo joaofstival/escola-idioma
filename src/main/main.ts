@@ -24,9 +24,12 @@ import type { ApiRequest, ApiResponse, ResultadoBackupIpc } from '../shared/type
 const DIST = import.meta.dirname;
 const PRELOAD = join(DIST, 'preload.cjs');
 const INDEX_HTML = join(DIST, 'renderer', 'index.html');
-const RENDERER_URL = pathToFileURL(join(DIST, 'renderer')).href;
+const RENDERER_URL = pathToFileURL(INDEX_HTML).href;
 
-const central = process.env.ESCOLA_API_URL ? new ClienteCentral(process.env.ESCOLA_API_URL) : null;
+const central =
+  process.env.ESCOLA_MODO_LEGADO === '1' && !app.isPackaged
+    ? null
+    : new ClienteCentral(process.env.ESCOLA_API_URL ?? 'http://127.0.0.1:3489');
 let db: Db | null = null;
 let api: Router | null = null;
 let janela: BrowserWindow | null = null;
@@ -39,7 +42,11 @@ function ehExterno(url: string): boolean {
 /** Só aceita IPC vindo das páginas do próprio app (file:// em dist/renderer). */
 function origemConfiavel(event: IpcMainInvokeEvent): boolean {
   const url = event.senderFrame?.url ?? '';
-  return url.startsWith(RENDERER_URL);
+  return (
+    url.split('#')[0] === RENDERER_URL &&
+    event.sender.id === janela?.webContents.id &&
+    event.senderFrame?.routingId === event.sender.mainFrame.routingId
+  );
 }
 
 async function iniciarBanco(): Promise<void> {
@@ -225,7 +232,7 @@ app.on('web-contents-created', (_e, contents) => {
     return { action: 'deny' };
   });
   contents.on('will-navigate', (event, url) => {
-    if (url.startsWith(RENDERER_URL)) return; // navegação interna (ex.: hash)
+    if (url.split('#')[0] === RENDERER_URL) return; // navegação interna (ex.: hash)
     event.preventDefault();
     if (ehExterno(url)) void shell.openExternal(url);
   });

@@ -1,3 +1,4 @@
+import { migration002 } from './002-identidade.ts';
 // Migrations versionadas: lista ordenada {versao, nome, sql}; a versão aplicada fica em PRAGMA user_version.
 // Cada migration roda numa transação: falhou = rollback e erro claro, nunca sobe parcial.
 import type { DatabaseSync } from 'node:sqlite';
@@ -11,7 +12,7 @@ export interface Migration {
 }
 
 /** Ordem importa: versões sequenciais a partir de 1. Nunca edite uma migration já liberada; crie a próxima. */
-export const MIGRATIONS: Migration[] = [migration001];
+export const MIGRATIONS: Migration[] = [migration001, migration002];
 export const ULTIMA_VERSAO = MIGRATIONS[MIGRATIONS.length - 1].versao;
 
 function versaoDoBanco(raw: DatabaseSync): number {

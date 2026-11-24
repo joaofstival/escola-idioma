@@ -120,7 +120,7 @@ export class Router {
     return params;
   }
 
-  async handle(req: ApiRequest): Promise<ApiResponse> {
+  async handle(req: ApiRequest, executarMutacao?: (fn: () => unknown) => unknown): Promise<ApiResponse> {
     try {
       if (!req || typeof req !== 'object' || typeof req.path !== 'string') {
         throw new HttpError(400, 'Requisição inválida');
@@ -153,7 +153,9 @@ export class Router {
         throw new HttpError(404, `Rota não encontrada: ${method} ${caminho}`);
       }
 
-      const data = await melhor.route.handler({ method, path: caminho, params: melhor.params, query, body: req.body });
+      const escolhido = melhor;
+      const invocar = () => escolhido.route.handler({ method, path: caminho, params: escolhido.params, query, body: req.body });
+      const data = await (method !== 'GET' && executarMutacao ? executarMutacao(invocar) : invocar());
       return { ok: true, status: melhor.route.status, data: data === undefined ? null : data };
     } catch (err) {
       if (err instanceof HttpError) {

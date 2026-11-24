@@ -16,7 +16,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:ui": "vitest run",
-    "server": "node src/server/bootstrap.ts"
+    "server": "node src/server/bootstrap.ts",
+    "server:admin": "node src/server/setup-admin.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",

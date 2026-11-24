@@ -1,3 +1,4 @@
+import { useSessao } from '@/auth/sessao';
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
@@ -55,33 +56,42 @@ export const NAVEGACAO: { grupo: string; itens: Item[] }[] = [
     grupo: 'Ferramentas',
     itens: [
       { rota: 'traducao', rotulo: 'Tradutor', icone: ScrollText },
+      { rota: 'usuarios', rotulo: 'Contas e acesso', icone: Users },
       { rota: 'configuracoes', rotulo: 'Configurações', icone: Settings },
     ],
   },
 ];
 
 function Navegacao({ aoNavegar }: { aoNavegar?: () => void }) {
+  const { usuario } = useSessao();
+  const permitida = (rota: string) =>
+    usuario?.papel === 'admin' ||
+    (usuario?.papel === 'financeiro'
+      ? ['financeiro', 'cotacao', 'traducao'].includes(rota)
+      : ['alunos', 'professores', 'idiomas', 'turmas', 'matriculas', 'materiais', 'cotacao', 'traducao'].includes(rota));
   return (
     <nav aria-label="Principal" className="flex flex-col gap-4 px-3 pb-4">
       {NAVEGACAO.map((g) => (
         <div key={g.grupo} className="flex flex-col gap-1">
           <div className="px-3 text-xs font-medium text-muted-foreground">{g.grupo}</div>
-          {g.itens.map(({ rota, rotulo, icone: Icone }) => (
-            <NavLink
-              key={rota}
-              to={`/${rota}`}
-              onClick={aoNavegar}
-              className={({ isActive }) =>
-                cn(
-                  'flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
-                  isActive ? 'bg-accent text-primary' : 'text-foreground hover:bg-accent/60',
-                )
-              }
-            >
-              <Icone className="size-4 shrink-0" aria-hidden="true" />
-              {rotulo}
-            </NavLink>
-          ))}
+          {g.itens
+            .filter((i) => permitida(i.rota))
+            .map(({ rota, rotulo, icone: Icone }) => (
+              <NavLink
+                key={rota}
+                to={`/${rota}`}
+                onClick={aoNavegar}
+                className={({ isActive }) =>
+                  cn(
+                    'flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
+                    isActive ? 'bg-accent text-primary' : 'text-foreground hover:bg-accent/60',
+                  )
+                }
+              >
+                <Icone className="size-4 shrink-0" aria-hidden="true" />
+                {rotulo}
+              </NavLink>
+            ))}
         </div>
       ))}
     </nav>
@@ -91,6 +101,7 @@ function Navegacao({ aoNavegar }: { aoNavegar?: () => void }) {
 /** Janela: barra lateral fixa de 240px (menu recolhível em janela estreita) + área de conteúdo branca. */
 export function Shell() {
   const { pathname } = useLocation();
+  const { usuario, sair } = useSessao();
   // O menu aberto vale só para a rota em que foi aberto: ao navegar, fecha sozinho.
   const [abertoEm, setAbertoEm] = useState<string | null>(null);
   const aberto = abertoEm === pathname;
@@ -108,6 +119,12 @@ export function Shell() {
           Escola<span className="text-primary">Idiomas</span>
         </div>
         <Navegacao aoNavegar={() => setAberto(false)} />
+        <div className="mt-auto space-y-2 border-t p-4">
+          <p className="truncate text-sm">{usuario?.nome}</p>
+          <Button variant="outline" onClick={() => void sair()}>
+            Sair
+          </Button>
+        </div>
       </aside>
       {aberto && <div className="fixed inset-0 z-20 bg-foreground/30 md:hidden" onClick={() => setAberto(false)} aria-hidden="true" />}
       <div className="flex min-w-0 flex-1 flex-col">
