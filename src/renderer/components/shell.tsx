@@ -40,6 +40,7 @@ export const NAVEGACAO: { grupo: string; itens: Item[] }[] = [
   {
     grupo: 'Ano letivo',
     itens: [
+      { rota: 'agenda', rotulo: 'Agenda e frequência', icone: GraduationCap },
       { rota: 'matriculas', rotulo: 'Matrículas', icone: GraduationCap },
       { rota: 'materiais', rotulo: 'Materiais didáticos', icone: BookOpen },
       { rota: 'avaliacoes', rotulo: 'Avaliações', icone: ClipboardCheck },
@@ -68,7 +69,7 @@ function Navegacao({ aoNavegar }: { aoNavegar?: () => void }) {
     usuario?.papel === 'admin' ||
     (usuario?.papel === 'financeiro'
       ? ['financeiro', 'cotacao', 'traducao'].includes(rota)
-      : ['alunos', 'professores', 'idiomas', 'turmas', 'matriculas', 'materiais', 'cotacao', 'traducao'].includes(rota));
+      : ['alunos', 'professores', 'idiomas', 'turmas', 'matriculas', 'materiais', 'agenda', 'cotacao', 'traducao'].includes(rota));
   return (
     <nav aria-label="Principal" className="flex flex-col gap-4 px-3 pb-4">
       {NAVEGACAO.map((g) => (

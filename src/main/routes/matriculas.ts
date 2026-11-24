@@ -142,7 +142,13 @@ export interface DadosMatricula {
 }
 
 /** Valida e cria a matrícula (tipo 'matricula' ou 'rematricula') e gera as mensalidades. */
-export function matricular(db: Db, dados: DadosMatricula, hojeRef: string, tipo: MatriculaTipo = 'matricula'): Matricula {
+export function matricular(
+  db: Db,
+  dados: DadosMatricula,
+  hojeRef: string,
+  tipo: MatriculaTipo = 'matricula',
+  gerarCobrancas = true,
+): Matricula {
   const v = new Validador(dados as Record<string, unknown>);
   const alunoId = v.inteiro('aluno_id', { obrigatorio: true, min: 1, rotulo: 'aluno' });
   const turmaId = v.inteiro('turma_id', { obrigatorio: true, min: 1, rotulo: 'turma' });
@@ -173,6 +179,13 @@ export function matricular(db: Db, dados: DadosMatricula, hojeRef: string, tipo:
      WHERE m.aluno_id = ? AND m.ano_letivo = ? AND t.idioma_id = ? AND m.status = 'ativa'`,
     [alunoId, ano, t.idioma_id],
   );
+  if (
+    db.get(
+      `SELECT h.id FROM horarios_turma h JOIN matriculas outra ON outra.turma_id=h.turma_id JOIN horarios_turma destino ON destino.turma_id=? AND destino.dia=h.dia AND destino.inicio<h.fim AND destino.fim>h.inicio WHERE outra.aluno_id=? AND outra.status='ativa' LIMIT 1`,
+      [t.id, alunoId],
+    )
+  )
+    v.erro('O aluno já possui turma com conflito de horário');
   if (duplicada) v.erro(`${aluno!.nome} já tem matrícula ativa em ${t.idioma_nome} em ${ano} (turma ${duplicada.turma_nome})`);
   else if (existente?.status === 'concluida') v.erro(`${aluno!.nome} já concluiu a turma ${t.nome} em ${ano}`);
   if (!duplicada && t.ocupacao >= t.capacidade) v.erro(`A turma ${t.nome} está lotada (${t.ocupacao}/${t.capacidade} vagas ocupadas)`);
@@ -194,7 +207,7 @@ export function matricular(db: Db, dados: DadosMatricula, hojeRef: string, tipo:
         data,
       ]).lastInsertRowid;
     }
-    const geradas = gerarMensalidades(db, id);
+    const geradas = gerarCobrancas ? gerarMensalidades(db, id) : 0;
     return { ...buscarMatricula(db, id), mensalidades_geradas: geradas };
   });
 }
@@ -253,9 +266,9 @@ export function cancelarMatricula(db: Db, id: number, hojeRef: string): Matricul
   const m = buscarMatricula(db, id);
   if (m.status !== 'ativa') throw new HttpError(422, `Só é possível cancelar uma matrícula ativa (situação atual: ${m.status})`);
   return db.transaction(() => {
-    db.run("UPDATE matriculas SET status = 'cancelada' WHERE id = ?", [id]);
+    db.run("UPDATE matriculas SET status = 'cancelada', encerrada_em=? WHERE id = ?", [hojeRef, id]);
     const { changes } = db.run(
-      "UPDATE mensalidades SET status = 'cancelada' WHERE matricula_id = ? AND status = 'pendente' AND vencimento > ?",
+      "UPDATE mensalidades SET status = 'cancelada' WHERE matricula_id = ? AND status = 'pendente' AND vencimento > ? AND NOT EXISTS(SELECT 1 FROM movimentacoes_financeiras mf WHERE mf.mensalidade_id=mensalidades.id AND mf.tipo='pagamento' AND NOT EXISTS(SELECT 1 FROM movimentacoes_financeiras e WHERE e.estorno_de=mf.id))",
       [id, hojeRef],
     );
     return { ...buscarMatricula(db, id), mensalidades_canceladas: changes };

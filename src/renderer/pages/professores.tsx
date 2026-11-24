@@ -232,6 +232,19 @@ export default function Professores() {
                       acoes={[
                         { rotulo: 'Editar professor', icone: Pencil, aoClicar: () => setEditando(p) },
                         {
+                          rotulo: 'Apagar cadastro sem histórico',
+                          destrutiva: true,
+                          aoClicar: async () => {
+                            if (!window.confirm(`Apagar cadastro de ${p.nome}? Registros com vínculos serão recusados.`)) return;
+                            try {
+                              await api.del(`/professores/${p.id}`);
+                              lista.reload();
+                            } catch (err) {
+                              toast.error(mensagemErro(err));
+                            }
+                          },
+                        },
+                        {
                           rotulo: 'Ver turmas',
                           icone: Presentation,
                           aoClicar: () => {

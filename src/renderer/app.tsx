@@ -1,3 +1,4 @@
+import Agenda from '@/pages/agenda';
 import { ProvedorSessao, useSessao } from '@/auth/sessao';
 import Login from '@/pages/login';
 import Portal from '@/pages/portal';
@@ -27,7 +28,7 @@ function RotasAdministrativas() {
     return <Navigate to="/financeiro" replace />;
   if (
     usuario?.papel === 'secretaria' &&
-    !['alunos', 'professores', 'idiomas', 'turmas', 'matriculas', 'materiais', 'cotacao', 'traducao'].includes(recurso)
+    !['alunos', 'professores', 'idiomas', 'turmas', 'matriculas', 'materiais', 'agenda', 'cotacao', 'traducao'].includes(recurso)
   )
     return <Navigate to="/alunos" replace />;
 
@@ -36,6 +37,7 @@ function RotasAdministrativas() {
       <Routes>
         <Route element={<Shell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="agenda" element={<Agenda />} />
           <Route path="usuarios" element={<Usuarios />} />
           <Route path="dashboard" element={<Painel />} />
           <Route path="alunos/:id?" element={<Alunos />} />

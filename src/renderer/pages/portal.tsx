@@ -1,3 +1,4 @@
+import Agenda from './agenda';
 import { ExtratoFinanceiro } from './extrato-financeiro';
 import { useState } from 'react';
 import { useSessao } from '@/auth/sessao';
@@ -24,6 +25,9 @@ export default function Portal() {
         </Button>
       </header>
       <nav className="flex flex-wrap gap-2" aria-label="Minha área">
+        <Button variant={aba === 'agenda' ? 'default' : 'outline'} onClick={() => setAba('agenda')}>
+          Agenda e frequência
+        </Button>
         <Button variant={aba === 'turmas' ? 'default' : 'outline'} onClick={() => setAba('turmas')}>
           Minhas turmas
         </Button>
@@ -33,7 +37,9 @@ export default function Portal() {
           </Button>
         )}
       </nav>
-      {aba === 'mensalidades' ? (
+      {aba === 'agenda' ? (
+        <Agenda />
+      ) : aba === 'mensalidades' ? (
         <MinhasMensalidades />
       ) : q.error ? (
         <EstadoErro erro={q.error} aoRecarregar={q.reload} />

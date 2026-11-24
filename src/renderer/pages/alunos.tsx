@@ -238,6 +238,19 @@ function Lista() {
                       acoes={[
                         { rotulo: 'Ver histórico', icone: UserRound, aoClicar: () => navigate(`/alunos/${a.id}`) },
                         { rotulo: 'Editar aluno', icone: Pencil, aoClicar: () => setEditando(a) },
+                        {
+                          rotulo: 'Apagar cadastro sem histórico',
+                          destrutiva: true,
+                          aoClicar: async () => {
+                            if (!window.confirm(`Apagar cadastro de ${a.nome}? Registros com vínculos serão recusados.`)) return;
+                            try {
+                              await api.del(`/alunos/${a.id}`);
+                              lista.reload();
+                            } catch (err) {
+                              toast.error(mensagemErro(err));
+                            }
+                          },
+                        },
                         a.ativo
                           ? { rotulo: 'Inativar aluno', icone: PowerOff, destrutiva: true, aoClicar: () => pedir(a) }
                           : { rotulo: 'Reativar aluno', icone: Power, aoClicar: () => pedir(a) },

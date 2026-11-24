@@ -1,3 +1,5 @@
+import { ServicoDiario } from './modules/academic/application/servico-diario.ts';
+import { RepositorioDiario } from './modules/academic/infrastructure/repositorio-diario.ts';
 import { ServicoFinanceiro, RepositorioFinanceiro } from './modules/finance/public.ts';
 import { z } from 'zod';
 import type { Db } from '../main/db.ts';
@@ -12,6 +14,7 @@ export class AplicacaoCentral {
   readonly db: Db;
   readonly identidade: ServicoIdentidade;
   readonly academico: ServicoAcademico;
+  readonly diario: ServicoDiario;
   readonly financeiro: ServicoFinanceiro;
   private readonly legado: ReturnType<typeof createApi>;
   constructor(db: Db) {
@@ -20,6 +23,7 @@ export class AplicacaoCentral {
     this.legado = createApi(db);
     this.identidade = new ServicoIdentidade(new RepositorioIdentidade(db), new SegredosScrypt());
     this.academico = new ServicoAcademico(new RepositorioAcademicoSqlite(db));
+    this.diario = new ServicoDiario(new RepositorioDiario(db), this.academico);
   }
   async handle(req: ApiRequest, token?: string): Promise<ApiResponse> {
     try {
@@ -45,6 +49,19 @@ export class AplicacaoCentral {
             conta[2] === 'desativar' ? this.identidade.desativar(u, Number(conta[1])) : this.identidade.recuperar(u, Number(conta[1])),
           );
         throw new HttpError(404, 'Rota não encontrada');
+      }
+      if (caminho === '/academico/aulas' && req.method === 'GET') return this.ok(this.diario.listar(u));
+      if (caminho === '/academico/aulas' && req.method === 'POST') return this.ok(this.diario.criar(u, req.body), 201);
+      if (caminho === '/academico/horarios' && req.method === 'GET') return this.ok(this.diario.horarios(u));
+      if (caminho === '/academico/horarios' && req.method === 'POST') return this.ok(this.diario.horario(u, req.body));
+      if (caminho === '/academico/transferencias' && req.method === 'POST') return this.ok(this.diario.transferir(u, req.body));
+      if (caminho === '/academico/frequencia' && req.method === 'GET') return this.ok(this.diario.frequencia(u));
+      const aula = /^\/academico\/aulas\/(\d+)(?:\/(alunos|chamada))?$/.exec(caminho);
+      if (aula) {
+        const id = Number(aula[1]);
+        if (req.method === 'GET' && aula[2] === 'alunos') return this.ok(this.diario.alunos(u, id));
+        if (req.method === 'PUT' && !aula[2]) return this.ok(this.diario.atualizar(u, id, req.body));
+        if (req.method === 'POST' && aula[2] === 'chamada') return this.ok(this.diario.chamada(u, id, req.body));
       }
       if (caminho === '/portal/turmas' && req.method === 'GET') return this.ok(this.academico.turmas(u));
       const turma = /^\/portal\/turmas\/(\d+)\/alunos$/.exec(caminho);
