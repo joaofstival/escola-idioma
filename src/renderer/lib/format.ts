@@ -18,6 +18,17 @@ export function dinheiro(n: number | null | undefined, moeda = 'BRL'): string {
   }
 }
 
+const MENOR_COTACAO = 0.000001;
+
+/** Taxa de câmbio em reais: 2 a 6 casas; positivo abaixo de 0,000001 vira "< R$ 0,000001"; inválido/negativo vira "—". */
+export function cotacaoEmBrl(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n) || n < 0) return VAZIO;
+  const fmt = (v: number): string =>
+    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 6 });
+  if (n > 0 && n < MENOR_COTACAO) return `< ${fmt(MENOR_COTACAO)}`;
+  return fmt(n);
+}
+
 /** 'aaaa-mm-dd' (ou data/hora ISO) → 'dd/mm/aaaa'. */
 export function data(iso: string | null | undefined): string {
   if (!iso) return VAZIO;

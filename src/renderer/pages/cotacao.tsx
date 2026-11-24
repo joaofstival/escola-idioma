@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@/hooks/use-query';
 import { api, mensagemErro } from '@/lib/api';
-import { dinheiro } from '@/lib/format';
+import { cotacaoEmBrl, dinheiro } from '@/lib/format';
 import type { Conversao, CotacaoResposta } from '../../shared/types.ts';
 
 const dataHora = (iso: string) => {
@@ -108,7 +108,7 @@ export default function Cotacao() {
                       <TableCell>
                         <span className="font-medium">{c.moeda}</span> <span className="text-muted-foreground">{c.nome}</span>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{dinheiro(c.valor_em_brl)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{cotacaoEmBrl(c.valor_em_brl)}</TableCell>
                       <TableCell className="text-right tabular-nums">{taxa(c.brl_em_moeda)}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {c.variacao_pct === null || c.variacao_pct === undefined ? (
