@@ -70,6 +70,27 @@ export class ServicoIdentidade {
   logout(token: string) {
     this.repositorio.encerrarSessao(this.segredos.hashToken(token));
   }
+  async trocarSenha(u: UsuarioSessao, body: unknown) {
+    const v = z
+      .object({ senha_atual: z.string().min(1).max(128), nova_senha: senha })
+      .strict()
+      .parse(body);
+    // Reutiliza limitação de tentativas e a verificação de conta vigente.
+    const sessao = await this.login({ email: u.email, senha: v.senha_atual });
+    this.logout(sessao.token);
+    const original = this.repositorio.porId(u.id);
+    if (!original?.ativo) throw new HttpError(401, 'Entre novamente');
+    const hash = await this.segredos.hashSenha(v.nova_senha);
+    this.repositorio.transacao(() => {
+      const atual = this.repositorio.porId(u.id);
+      if (!atual?.ativo || atual.senha_hash !== original.senha_hash) throw new HttpError(409, 'Acesso alterado. Entre novamente');
+      this.repositorio.ativar(u.id, hash);
+      this.repositorio.revogar(u.id);
+      this.repositorio.limparCodigos(u.id);
+      this.repositorio.auditar(u.id, 'TROCAR_SENHA', 'conta:' + u.id);
+    });
+    return { ok: true };
+  }
   async criarConta(ator: UsuarioSessao, body: unknown) {
     if (ator.papel !== 'admin') throw new HttpError(403, 'Acesso não permitido');
     const v = dadosConta.parse(body);

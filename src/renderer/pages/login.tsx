@@ -83,8 +83,64 @@ export default function Login() {
         >
           {ativar ? 'Voltar para entrar' : 'Primeiro acesso ou recuperação'}
         </Button>
+        <ConexaoEscola />
         <p className="text-xs text-muted-foreground">Precisa de um código? Solicite à secretaria. Não compartilhe sua senha.</p>
       </div>
     </main>
+  );
+}
+
+function ConexaoEscola() {
+  const [endereco, setEndereco] = useState(''),
+    [mensagem, setMensagem] = useState(''),
+    [busy, setBusy] = useState(false);
+  return (
+    <details
+      onToggle={async (e) => {
+        if (e.currentTarget.open && !endereco) {
+          try {
+            const r = await api.get<{ endereco: string }>('/cliente/conexao');
+            setEndereco(r.endereco);
+          } catch {
+            setMensagem('Informe o endereço fornecido pela escola');
+          }
+        }
+      }}
+    >
+      <summary className="cursor-pointer text-sm">Conexão com a escola</summary>
+      <form
+        className="mt-3 space-y-3"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          try {
+            await api.put('/cliente/conexao', { endereco });
+            setMensagem('Conexão salva. Entre com sua conta.');
+          } catch (e) {
+            setMensagem(mensagemErro(e));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <Label htmlFor="escola-url">Endereço do servidor</Label>
+        <Input
+          id="escola-url"
+          type="url"
+          value={endereco}
+          onChange={(e) => setEndereco(e.target.value)}
+          placeholder="https://escola.exemplo.com"
+          required
+        />
+        <Button disabled={busy} variant="outline">
+          Salvar conexão
+        </Button>
+        {mensagem && (
+          <p role="status" className="text-sm">
+            {mensagem}
+          </p>
+        )}
+      </form>
+    </details>
   );
 }

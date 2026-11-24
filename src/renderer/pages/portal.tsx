@@ -1,3 +1,6 @@
+import { ResumoPortal } from '@/components/resumo-portal';
+import Traducao from './traducao';
+import { MinhaConta } from '@/components/minha-conta';
 import Comunicacao from './comunicacao';
 import { Routes, Route, useLocation, Link, useNavigate } from 'react-router-dom';
 import { AvaliacaoDetalhe, AvaliacaoNova } from './avaliacao-detalhe';
@@ -19,7 +22,7 @@ type Turma = { id: number; nome: string; idioma_nome: string; nivel: number; ano
 export default function Portal() {
   const { usuario, sair } = useSessao();
   const location = useLocation();
-  const [aba, alterarAba] = useState('turmas');
+  const [aba, alterarAba] = useState('inicio');
   const navigate = useNavigate();
   const setAba = (valor: string) => {
     alterarAba(valor);
@@ -37,7 +40,14 @@ export default function Portal() {
           Sair
         </Button>
       </header>
+      <MinhaConta />
       <nav className="flex flex-wrap gap-2" aria-label="Minha área">
+        <Button variant={aba === 'inicio' ? 'default' : 'outline'} onClick={() => setAba('inicio')}>
+          Início
+        </Button>
+        <Button variant="outline" onClick={() => setAba('traducao')}>
+          Tradutor de estudo
+        </Button>
         <Button variant="outline" onClick={() => setAba('comunicacao')}>
           Avisos e secretaria
         </Button>
@@ -68,6 +78,10 @@ export default function Portal() {
         ) : (
           <ProfessorAvaliacoes />
         )
+      ) : aba === 'inicio' ? (
+        <ResumoPortal abrir={setAba} />
+      ) : aba === 'traducao' ? (
+        <Traducao />
       ) : aba === 'comunicacao' ? (
         <Comunicacao />
       ) : aba === 'atividades' ? (

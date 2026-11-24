@@ -11,6 +11,7 @@ export interface Aviso {
   texto: string;
   turma_id: number | null;
   destinatario_id: number | null;
+  papel_destino: string | null;
   expira_em: string;
   lido: number;
   criado_em: string;
@@ -32,7 +33,14 @@ export interface PortaComunicacao {
   historico(id: number): unknown[];
   criarAviso(
     u: number,
-    v: { titulo: string; texto: string; turma_id: number | null; destinatario_id: number | null; expira_em: string },
+    v: {
+      titulo: string;
+      texto: string;
+      turma_id: number | null;
+      destinatario_id: number | null;
+      papel_destino: string | null;
+      expira_em: string;
+    },
   ): number;
   ler(id: number, u: number): void;
   criarSolicitacao(u: number, assunto: string, texto: string): number;
@@ -60,14 +68,25 @@ export class RepositorioComunicacao implements PortaComunicacao {
       [id],
     );
   }
-  criarAviso(u: number, v: { titulo: string; texto: string; turma_id: number | null; destinatario_id: number | null; expira_em: string }) {
+  criarAviso(
+    u: number,
+    v: {
+      titulo: string;
+      texto: string;
+      turma_id: number | null;
+      destinatario_id: number | null;
+      papel_destino: string | null;
+      expira_em: string;
+    },
+  ) {
     return Number(
-      this.db.run('INSERT INTO avisos(autor_id,titulo,texto,turma_id,destinatario_id,expira_em) VALUES(?,?,?,?,?,?)', [
+      this.db.run('INSERT INTO avisos(autor_id,titulo,texto,turma_id,destinatario_id,papel_destino,expira_em) VALUES(?,?,?,?,?,?,?)', [
         u,
         v.titulo,
         v.texto,
         v.turma_id,
         v.destinatario_id,
+        v.papel_destino,
         v.expira_em,
       ]).lastInsertRowid,
     );
@@ -108,7 +127,10 @@ export class ServicoComunicacao {
     return this.repo
       .avisos(u.id)
       .filter(
-        (a) => a.expira_em >= hojeIso() && (a.destinatario_id ? a.destinatario_id === u.id : a.turma_id ? turmas.has(a.turma_id) : true),
+        (a) =>
+          a.expira_em >= hojeIso() &&
+          (!a.papel_destino || a.papel_destino === u.papel) &&
+          (a.destinatario_id ? a.destinatario_id === u.id : a.turma_id ? turmas.has(a.turma_id) : true),
       );
   }
   publicar(u: UsuarioSessao, body: unknown) {
@@ -118,13 +140,16 @@ export class ServicoComunicacao {
         titulo: z.string().trim().min(3).max(150),
         texto: z.string().trim().min(3).max(5000),
         turma_id: z.number().int().positive().nullable().default(null),
+        papel_destino: z.enum(['admin', 'secretaria', 'financeiro', 'professor', 'aluno']).nullable().default(null),
         destinatario_id: z.number().int().positive().nullable().default(null),
         expira_em: z.string().refine(dataIsoValida),
       })
       .strict()
       .parse(body);
-    if (v.expira_em < hojeIso() || (v.turma_id && v.destinatario_id)) throw new HttpError(422, 'Confira destino e validade');
-    if (u.papel === 'professor' && (!v.turma_id || v.destinatario_id)) throw new HttpError(403, 'Professor publica apenas para sua turma');
+    if (v.expira_em < hojeIso() || [v.turma_id, v.destinatario_id, v.papel_destino].filter(Boolean).length > 1)
+      throw new HttpError(422, 'Confira destino e validade');
+    if (u.papel === 'professor' && (!v.turma_id || v.destinatario_id || v.papel_destino))
+      throw new HttpError(403, 'Professor publica apenas para sua turma');
     if (v.turma_id) this.academico.exigirTurma(u, v.turma_id);
     return this.repo.transacao(() => {
       const id = this.repo.criarAviso(u.id, v);

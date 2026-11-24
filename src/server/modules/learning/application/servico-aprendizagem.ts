@@ -106,6 +106,39 @@ export class ServicoAprendizagem {
       return this.entregas(u, id).find((e) => e.id === entrega);
     });
   }
+  presencial(u: UsuarioSessao, id: number, body: unknown) {
+    const a = this.atividade(u, id);
+    this.professor(u, a.turma_id);
+    const v = z
+      .object({
+        aluno_id: z.number().int().positive(),
+        nota: z.number().nonnegative().max(100),
+        devolutiva: z.string().max(5000),
+        publicada: z.boolean(),
+        motivo: z.string().trim().min(5).max(500),
+        operacao_id: z.string().uuid(),
+      })
+      .strict()
+      .parse(body);
+    if (v.nota > a.valor_max) throw new HttpError(422, 'Nota excede a escala');
+    if (!this.acesso.alunos(u, a.turma_id).some((aluno) => aluno.id === v.aluno_id)) throw new HttpError(422, 'Aluno não pertence à turma');
+    const hash = createHash('sha256')
+      .update(JSON.stringify({ id, ...v }))
+      .digest('hex');
+    return this.repo.transacao(() => {
+      const anterior = this.repo.operacao(v.operacao_id);
+      if (anterior) {
+        if (anterior.usuario_id !== u.id || anterior.payload_hash !== hash) throw new HttpError(409, 'Identificador já utilizado');
+        return this.entregas(u, id).find((e) => e.id === anterior.entrega_id);
+      }
+      if (this.repo.entregas(id).some((e) => e.aluno_id === v.aluno_id))
+        throw new HttpError(409, 'Já existe entrega ou registro para o aluno. Corrija a nota no registro existente.');
+      const entrega = this.repo.enviar(id, v.aluno_id, u.id, 'Avaliação presencial: ' + v.motivo, null, v.operacao_id, hash);
+      this.repo.nota(entrega, u.id, v.nota, v.devolutiva, v.publicada, null, v.motivo);
+      this.repo.auditar(u.id, 'AVALIACAO_PRESENCIAL', String(entrega), v.motivo);
+      return this.entregas(u, id).find((e) => e.id === entrega);
+    });
+  }
   avaliar(u: UsuarioSessao, id: number, entrega: number, body: unknown) {
     const v = z
       .object({

@@ -46,6 +46,7 @@ export default function Comunicacao() {
               texto: d.get('texto'),
               turma_id: d.get('turma') ? Number(d.get('turma')) : null,
               expira_em: d.get('validade'),
+              papel_destino: d.get('papel') || null,
             }
           : { assunto: d.get('assunto'), texto: d.get('texto') },
       );
@@ -120,6 +121,19 @@ export default function Comunicacao() {
                 ))}
               </select>
             </label>
+            {gestao && (
+              <label>
+                Perfil destinatário (deixe em branco ao escolher uma turma)
+                <select name="papel" className="block w-full rounded border p-2">
+                  <option value="">Todos os perfis</option>
+                  {['admin', 'secretaria', 'financeiro', 'professor', 'aluno'].map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label htmlFor="aviso-validade">
               Válido até
               <Input id="aviso-validade" name="validade" type="date" required />

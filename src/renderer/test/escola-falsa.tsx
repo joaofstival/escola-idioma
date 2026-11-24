@@ -32,7 +32,13 @@ export function instalarEscola(rotas: Rotas) {
       ? { ok: true, status: 200, data: out.data }
       : { ok: false, status: out.status, erro: out.erro, detalhes: 'detalhes' in out ? out.detalhes : undefined };
   });
-  (window as unknown as { escola: unknown }).escola = { request, saveFile: vi.fn(), exportarBackup: vi.fn(), restaurarBackup: vi.fn() };
+  (window as unknown as { escola: unknown }).escola = {
+    request,
+    saveBinary: vi.fn(),
+    saveFile: vi.fn(),
+    exportarBackup: vi.fn(),
+    restaurarBackup: vi.fn(),
+  };
   return {
     chamadas,
     request,

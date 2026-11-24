@@ -68,3 +68,46 @@ test('atividades: identidade da entrega, isolamento, nota privada e publicação
     db.close();
   }
 });
+
+test('registro presencial atribui a nota ao aluno da turma e preserva autoria docente', async () => {
+  const { app, db, tokens: t } = await cenarioCentral();
+  try {
+    const a = dados<any>(
+      await app.handle(
+        {
+          method: 'POST',
+          path: '/atividades',
+          body: {
+            turma_id: 1,
+            titulo: 'Prova oral',
+            descricao: 'Avaliação na escola',
+            prazo: '2026-12-31',
+            valor_max: 10,
+            estado: 'publicada',
+          },
+        },
+        t.profA,
+      ),
+    );
+    const body = {
+      aluno_id: 1,
+      nota: 9,
+      devolutiva: 'Boa comunicação',
+      publicada: true,
+      motivo: 'Prova oral presencial',
+      operacao_id: randomUUID(),
+    };
+    assert.equal((await app.handle({ method: 'POST', path: `/atividades/${a.id}/presencial`, body }, t.alunoA)).status, 403);
+    assert.equal(
+      (await app.handle({ method: 'POST', path: `/atividades/${a.id}/presencial`, body: { ...body, aluno_id: 2 } }, t.profA)).status,
+      422,
+    );
+    const e = dados<any>(await app.handle({ method: 'POST', path: `/atividades/${a.id}/presencial`, body }, t.profA));
+    assert.equal(e.nota, 9);
+    assert.equal(dados<any>(await app.handle({ method: 'POST', path: `/atividades/${a.id}/presencial`, body }, t.profA)).id, e.id);
+    assert.equal(dados<any[]>(await app.handle({ method: 'GET', path: `/atividades/${a.id}/entregas` }, t.alunoA))[0].nota, 9);
+    assert.equal(db.get<{ n: number }>('SELECT count(*) n FROM entregas_versoes')?.n, 1);
+  } finally {
+    db.close();
+  }
+});

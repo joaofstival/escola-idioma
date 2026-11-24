@@ -176,6 +176,7 @@ export interface Inadimplente {
 }
 
 export interface HistoricoAluno {
+  financeiro_restrito?: boolean;
   aluno: Aluno;
   matriculas: Matricula[];
   mensalidades: Mensalidade[];

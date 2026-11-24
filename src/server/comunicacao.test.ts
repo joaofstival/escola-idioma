@@ -15,6 +15,23 @@ test('avisos e pedidos respeitam destino, autoria, leitura e versão de atendime
     assert.equal((await app.handle({ method: 'POST', path: `/avisos/${a.id}/ler` }, t.alunoB)).status, 404);
     dados(await app.handle({ method: 'POST', path: `/avisos/${a.id}/ler` }, t.alunoA));
     assert.equal(dados<any[]>(await app.handle({ method: 'GET', path: '/avisos' }, t.alunoA))[0].lido, 1);
+    dados(
+      await app.handle(
+        {
+          method: 'POST',
+          path: '/avisos',
+          body: {
+            titulo: 'Reunião docente',
+            texto: 'Informação apenas para professores',
+            papel_destino: 'professor',
+            expira_em: '2026-12-31',
+          },
+        },
+        t.admin,
+      ),
+    );
+    assert.equal(dados<any[]>(await app.handle({ method: 'GET', path: '/avisos' }, t.alunoA)).length, 1);
+    assert.equal(dados<any[]>(await app.handle({ method: 'GET', path: '/avisos' }, t.profB)).length, 1);
     const p = dados<any>(
       await app.handle(
         { method: 'POST', path: '/solicitacoes', body: { assunto: 'Declaração', texto: 'Preciso de declaração de matrícula' } },

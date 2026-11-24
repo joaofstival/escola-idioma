@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import { useFormContext, type FieldPath, type FieldValues } from 'react-hook-form';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -95,6 +96,12 @@ export function CampoSelect<T extends FieldValues>({
   disabled,
 }: Base<T> & { opcoes: OpcaoSelect[]; placeholder?: string; disabled?: boolean }) {
   const { control } = useFormContext<T>();
+  const [busca, setBusca] = useState('');
+  const normalizar = (v: string) =>
+    v
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
   return (
     <FormField
       control={control}
@@ -106,6 +113,9 @@ export function CampoSelect<T extends FieldValues>({
             value={field.value ? String(field.value) : opcoes.some((o) => !o.valor) ? VAZIO_INTERNO : ''}
             onValueChange={(v) => field.onChange(v === VAZIO_INTERNO ? '' : v)}
             disabled={disabled}
+            onOpenChange={(aberto) => {
+              if (!aberto) setBusca('');
+            }}
           >
             <FormControl>
               <SelectTrigger className="w-full" onBlur={field.onBlur}>
@@ -113,11 +123,26 @@ export function CampoSelect<T extends FieldValues>({
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              {opcoes.map((o) => (
-                <SelectItem key={o.valor || VAZIO_INTERNO} value={o.valor || VAZIO_INTERNO} disabled={o.desabilitada}>
-                  {o.rotulo}
-                </SelectItem>
-              ))}
+              {opcoes.length > 10 && (
+                <div className="p-2">
+                  <Input
+                    aria-label={'Buscar ' + rotulo}
+                    placeholder="Buscar opção…"
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Escape') e.stopPropagation();
+                    }}
+                  />
+                </div>
+              )}
+              {opcoes
+                .filter((o) => o.valor === String(field.value) || normalizar(o.rotulo).includes(normalizar(busca)))
+                .map((o) => (
+                  <SelectItem key={o.valor || VAZIO_INTERNO} value={o.valor || VAZIO_INTERNO} disabled={o.desabilitada}>
+                    {o.rotulo}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           {dica && <FormDescription>{dica}</FormDescription>}

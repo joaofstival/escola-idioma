@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { criarBackup, pastaDeBackups } from '../main/backup.ts';
 import { ServicoFerramentas } from './modules/ferramentas.ts';
 import { ServicoComunicacao, RepositorioComunicacao } from './modules/communication/public.ts';
 import { ControladorAvaliacoes } from './modules/learning/avaliacoes.ts';
@@ -39,6 +42,9 @@ export class AplicacaoCentral {
     this.biblioteca = new ServicoBiblioteca(new RepositorioBiblioteca(db), this.academico);
     this.aprendizagem = new ServicoAprendizagem(new RepositorioAprendizagem(db, new RepositorioBiblioteca(db)), this.academico);
   }
+  autorizar(token?: string) {
+    this.identidade.exigir(token);
+  }
   async handle(req: ApiRequest, token?: string): Promise<ApiResponse> {
     try {
       const caminho = decodeURIComponent(req.path.split('?')[0]);
@@ -47,10 +53,25 @@ export class AplicacaoCentral {
       if (req.method === 'POST' && caminho === '/auth/login') return this.ok(await this.identidade.login(req.body));
       if (req.method === 'POST' && caminho === '/auth/ativar') return this.ok(await this.identidade.ativar(req.body));
       const u = this.identidade.exigir(token);
+      if (req.method === 'POST' && caminho === '/auth/senha') return this.ok(await this.identidade.trocarSenha(u, req.body));
       if (req.method === 'GET' && caminho === '/auth/session') return this.ok({ usuario: u });
       if (req.method === 'POST' && caminho === '/auth/logout') {
         this.identidade.logout(token!);
         return this.ok({ ok: true });
+      }
+      if (caminho === '/operacoes/backup/exportar' && req.method === 'POST') {
+        if (u.papel !== 'admin') throw new HttpError(403, 'Acesso não permitido');
+        const v = z
+          .object({ senha: z.string().min(1).max(128) })
+          .strict()
+          .parse(req.body);
+        const confirmacao = await this.identidade.login({ email: u.email, senha: v.senha });
+        this.identidade.logout(confirmacao.token);
+        this.identidade.exigir(token);
+        const pasta = pastaDeBackups(this.db),
+          b = criarBackup(this.db, pasta, 'manual');
+        this.identidade.repositorio.auditar(u.id, 'EXPORTAR_BACKUP', b.nome);
+        return this.ok({ nome: b.nome, base64: readFileSync(join(pasta, b.nome)).toString('base64') });
       }
       if (caminho.startsWith('/admin/')) {
         if (u.papel !== 'admin') throw new HttpError(403, 'Acesso não permitido');
@@ -83,6 +104,8 @@ export class AplicacaoCentral {
       if (avaliacao) return avaliacao;
       if (caminho === '/atividades' && req.method === 'GET') return this.ok(this.aprendizagem.listar(u));
       if (caminho === '/atividades' && req.method === 'POST') return this.ok(this.aprendizagem.criar(u, req.body), 201);
+      const presencial = /^\/atividades\/(\d+)\/presencial$/.exec(caminho);
+      if (presencial && req.method === 'POST') return this.ok(this.aprendizagem.presencial(u, Number(presencial[1]), req.body), 201);
       const atividade = /^\/atividades\/(\d+)(?:\/entregas(?:\/(\d+)\/(nota|arquivo))?)?$/.exec(caminho);
       if (atividade) {
         const id = Number(atividade[1]);
@@ -130,14 +153,46 @@ export class AplicacaoCentral {
       if (caminho === '/portal/turmas' && req.method === 'GET') return this.ok(this.academico.turmas(u));
       const turma = /^\/portal\/turmas\/(\d+)\/alunos$/.exec(caminho);
       if (turma && req.method === 'GET') return this.ok(this.academico.alunos(u, Number(turma[1])));
-      if (caminho === '/portal/dashboard' && req.method === 'GET')
-        return this.ok({ turmas: this.academico.turmas(u).length, perfil: u.papel });
+      if (caminho === '/portal/dashboard' && req.method === 'GET') {
+        const aulas = this.diario
+          .listar(u)
+          .filter((a) => a.status !== 'cancelada' && a.data >= new Date().toLocaleDateString('sv-SE'))
+          .sort((a, b) => (a.data + a.inicio).localeCompare(b.data + b.inicio));
+        const atividades = this.aprendizagem.listar(u),
+          materiais = this.biblioteca.listar(u);
+        return this.ok({
+          turmas: this.academico.turmas(u).length,
+          perfil: u.papel,
+          proxima_aula: aulas[0] ?? null,
+          materiais: materiais.length,
+          atividades: atividades.filter((a) => a.estado === 'publicada').length,
+          avisos_nao_lidos: this.comunicacao.avisos(u).filter((a) => !a.lido).length,
+          entregas_pendentes:
+            u.papel === 'professor'
+              ? atividades.reduce((n, a) => n + this.aprendizagem.entregas(u, a.id).filter((e) => e.nota === null).length, 0)
+              : null,
+        });
+      }
       if (caminho === '/portal/mensalidades' && req.method === 'GET') {
         if (u.papel !== 'aluno') throw new HttpError(403, 'Acesso não permitido');
         return this.ok(this.financeiro.listar(u));
       }
       const extrato = /^\/portal\/mensalidades\/(\d+)\/extrato$/.exec(caminho);
       if (extrato && req.method === 'GET') return this.ok(this.financeiro.extrato(u, Number(extrato[1])));
+      const historicoAcademico = /^\/alunos\/(\d+)\/historico$/.exec(caminho);
+      if (u.papel === 'secretaria' && req.method === 'GET' && historicoAcademico) {
+        const aluno = await this.legado.handle({ method: 'GET', path: '/alunos/' + historicoAcademico[1] });
+        if (!aluno.ok) return aluno;
+        const matriculas = await this.legado.handle({ method: 'GET', path: '/matriculas?aluno_id=' + historicoAcademico[1] });
+        if (!matriculas.ok) return matriculas;
+        return this.ok({
+          aluno: aluno.data,
+          matriculas: matriculas.data,
+          mensalidades: [],
+          resumo: { pago: 0, pendente: 0, atrasado: 0 },
+          financeiro_restrito: true,
+        });
+      }
       if (!this.permitido(u, req.method, caminho)) throw new HttpError(403, 'Acesso não permitido');
       if (caminho === '/financeiro/matriculas' && req.method === 'GET') return this.ok(this.financeiro.referencias(u));
       if (caminho === '/mensalidades' && req.method === 'POST') return this.ok(this.financeiro.criar(u, req.body), 201);
@@ -205,7 +260,7 @@ export class AplicacaoCentral {
           return valor;
         }),
       );
-      return r;
+      return !r.ok && r.status >= 500 ? { ok: false, status: 500, erro: 'Não foi possível concluir a operação' } : r;
     } catch (err) {
       if (err instanceof HttpError) return { ok: false, status: err.status, erro: err.erro };
       if (err instanceof z.ZodError) return { ok: false, status: 422, erro: 'Dados inválidos. Confira os campos e os limites informados.' };

@@ -1,3 +1,5 @@
+import type { Pagina } from '../../shared/contracts/paginacao';
+import { Paginacao } from '@/components/paginacao';
 // Professores: lista com os idiomas habilitados, cadastro em diálogo (checkboxes de idiomas) e ativar/inativar.
 import { useState } from 'react';
 import { useForm, useFormContext } from 'react-hook-form';
@@ -120,13 +122,25 @@ function FormProfessor({
 }
 
 export default function Professores() {
-  const [ativo, setAtivo] = useState('');
-  const [idiomaId, setIdiomaId] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const [ativo, alterarAtivo] = useState('');
+  const setAtivo = (v: string) => {
+    alterarAtivo(v);
+    setPagina(1);
+  };
+  const [idiomaId, alterarIdioma] = useState('');
+  const setIdiomaId = (v: string) => {
+    alterarIdioma(v);
+    setPagina(1);
+  };
   const idiomas = useQuery(() => api.get<Idioma[]>('/idiomas'), []);
-  const lista = useQuery(() => api.get<Professor[]>('/professores', { ativo, idioma_id: idiomaId }), [ativo, idiomaId]);
+  const lista = useQuery(
+    () => api.get<Pagina<Professor>>('/professores', { ativo, idioma_id: idiomaId, pagina }),
+    [ativo, idiomaId, pagina],
+  );
   const [editando, setEditando] = useState<Professor | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Professor | null>(null);
-  const profs = lista.data;
+  const profs = lista.data?.itens;
 
   async function alternar(p: Professor) {
     try {
@@ -264,6 +278,7 @@ export default function Professores() {
         </Table>
       )}
 
+      <Paginacao pagina={pagina} total={lista.data?.total ?? 0} mudar={setPagina} carregando={lista.loading} />
       {editando && idiomas.data && (
         <FormProfessor
           prof={editando === 'novo' ? null : editando}

@@ -9,6 +9,9 @@ mkdirSync('dist', { recursive: true });
 const common = { bundle: true, sourcemap: true, logLevel: 'info', target: 'es2023' };
 
 await Promise.all([
+  ...['bootstrap', 'setup-admin', 'demo', 'operacoes'].map((nome) =>
+    build({ ...common, entryPoints: [`src/server/${nome}.ts`], outfile: `dist/server/${nome}.js`, platform: 'node', format: 'esm' }),
+  ),
   build({ ...common, entryPoints: ['src/main/main.ts'], outfile: 'dist/main.js', platform: 'node', format: 'esm', external: ['electron'] }),
   build({
     ...common,

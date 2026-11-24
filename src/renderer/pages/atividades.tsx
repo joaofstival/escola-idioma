@@ -178,6 +178,10 @@ export default function Atividades() {
 function Entregas({ atividade: a }: { atividade: AtividadeEscolar }) {
   const { usuario } = useSessao(),
     aluno = usuario?.papel === 'aluno';
+  const alunos = useQuery(
+    () => (!aluno ? api.get<{ id: number; nome: string }[]>(`/portal/turmas/${a.turma_id}/alunos`) : Promise.resolve([])),
+    [a.turma_id, aluno],
+  );
   const q = useQuery(() => api.get<EntregaEscolar[]>(`/atividades/${a.id}/entregas`), [a.id]);
   const [erro, setErro] = useState(''),
     [enviando, setEnviando] = useState(false),
@@ -234,6 +238,69 @@ function Entregas({ atividade: a }: { atividade: AtividadeEscolar }) {
   }
   return (
     <section className="space-y-4 border-t pt-4">
+      {!aluno && (
+        <details className="rounded border p-3">
+          <summary>Registrar avaliação realizada na escola</summary>
+          <form
+            className="mt-3 grid gap-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const form = e.currentTarget,
+                d = new FormData(form);
+              setEnviando(true);
+              try {
+                await api.post(`/atividades/${a.id}/presencial`, {
+                  aluno_id: Number(d.get('aluno')),
+                  nota: Number(d.get('nota')),
+                  devolutiva: String(d.get('devolutiva') ?? ''),
+                  publicada: d.get('publicada') === 'on',
+                  motivo: String(d.get('motivo')),
+                  operacao_id: operacao,
+                });
+                q.reload();
+                setOperacao(crypto.randomUUID());
+                setErro('');
+                form.reset();
+              } catch (e) {
+                setErro(mensagemErro(e));
+              } finally {
+                setEnviando(false);
+              }
+            }}
+          >
+            <label>
+              Aluno
+              <select name="aluno" required className="block w-full border p-2 rounded">
+                <option value="">Selecione</option>
+                {alunos.data
+                  ?.filter((aluno) => !q.data?.some((e) => e.aluno_id === aluno.id))
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nome}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              Nota (0 a {a.valor_max})
+              <input name="nota" type="number" min={0} max={a.valor_max} step="0.01" required className="block w-full border p-2 rounded" />
+            </label>
+            <label>
+              Devolutiva
+              <textarea name="devolutiva" maxLength={5000} className="block w-full border p-2 rounded" />
+            </label>
+            <label>
+              Descrição/motivo do registro
+              <input name="motivo" required minLength={5} maxLength={500} className="block w-full border p-2 rounded" />
+            </label>
+            <label>
+              <input type="checkbox" name="publicada" /> Publicar nota para o aluno
+            </label>
+            <Button disabled={enviando}>Registrar avaliação presencial</Button>
+          </form>
+        </details>
+      )}
+
       {erro && (
         <p role="alert" className="text-danger-deep">
           {erro}

@@ -1,3 +1,4 @@
+import { consultarPagina } from '../paginacao.ts';
 // Rotas de professores. Cada professor é habilitado em um ou mais idiomas (tabela professor_idiomas).
 import type { Db } from '../db.ts';
 import type { Router } from '../router.ts';
@@ -86,12 +87,14 @@ export function register(router: Router, db: Db): void {
       where.push('EXISTS (SELECT 1 FROM professor_idiomas pi WHERE pi.professor_id = p.id AND pi.idioma_id = :idioma_id)');
       p.idioma_id = idiomaId;
     }
-    const rows = db.all<ProfessorRow>(
+    const rows = consultarPagina<ProfessorRow>(
+      db,
       `SELECT p.id, p.nome, p.email, p.telefone, p.ativo FROM professores p
-       ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY p.nome COLLATE NOCASE`,
+       ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY p.nome COLLATE NOCASE,p.id`,
       p,
+      query,
     );
-    return comIdiomas(db, rows);
+    return Array.isArray(rows) ? comIdiomas(db, rows) : { ...rows, itens: comIdiomas(db, rows.itens) };
   });
 
   router.get('/professores/:id', ({ params }) => buscarProfessor(db, parseId(params.id, 'Professor')));
