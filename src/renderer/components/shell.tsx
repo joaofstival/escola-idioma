@@ -104,8 +104,8 @@ export function Shell() {
           aberto ? 'translate-x-0 shadow-md' : '-translate-x-full',
         )}
       >
-        <div className="flex h-14 items-center gap-2 px-6 text-base font-semibold">
-          Escola<span className="text-primary">Idiomas</span>
+        <div className="flex h-16 items-center px-6">
+          <img src="./logo.png" alt="TalkWay" className="h-9 w-auto mix-blend-multiply" />
         </div>
         <Navegacao aoNavegar={() => setAberto(false)} />
       </aside>

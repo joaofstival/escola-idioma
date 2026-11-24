@@ -174,7 +174,8 @@ function criarJanela(): void {
     height: 820,
     minWidth: 960,
     minHeight: 640,
-    title: 'Escola de Idiomas',
+    title: 'TalkWay',
+    icon: join(DIST, 'renderer', 'icone.png'),
     show: false,
     webPreferences: {
       preload: PRELOAD,
