@@ -1,3 +1,6 @@
+import { ControladorAvaliacoes } from './modules/learning/avaliacoes.ts';
+import { ServicoAprendizagem, RepositorioAprendizagem } from './modules/learning/public.ts';
+import { ServicoBiblioteca, RepositorioBiblioteca } from './modules/library/public.ts';
 import { ServicoDiario } from './modules/academic/application/servico-diario.ts';
 import { RepositorioDiario } from './modules/academic/infrastructure/repositorio-diario.ts';
 import { ServicoFinanceiro, RepositorioFinanceiro } from './modules/finance/public.ts';
@@ -15,6 +18,9 @@ export class AplicacaoCentral {
   readonly identidade: ServicoIdentidade;
   readonly academico: ServicoAcademico;
   readonly diario: ServicoDiario;
+  readonly biblioteca: ServicoBiblioteca;
+  readonly aprendizagem: ServicoAprendizagem;
+  private readonly avaliacoes: ControladorAvaliacoes;
   readonly financeiro: ServicoFinanceiro;
   private readonly legado: ReturnType<typeof createApi>;
   constructor(db: Db) {
@@ -23,7 +29,10 @@ export class AplicacaoCentral {
     this.legado = createApi(db);
     this.identidade = new ServicoIdentidade(new RepositorioIdentidade(db), new SegredosScrypt());
     this.academico = new ServicoAcademico(new RepositorioAcademicoSqlite(db));
+    this.avaliacoes = new ControladorAvaliacoes(db, this.academico, this.legado);
     this.diario = new ServicoDiario(new RepositorioDiario(db), this.academico);
+    this.biblioteca = new ServicoBiblioteca(new RepositorioBiblioteca(db), this.academico);
+    this.aprendizagem = new ServicoAprendizagem(new RepositorioAprendizagem(db, new RepositorioBiblioteca(db)), this.academico);
   }
   async handle(req: ApiRequest, token?: string): Promise<ApiResponse> {
     try {
@@ -50,6 +59,34 @@ export class AplicacaoCentral {
           );
         throw new HttpError(404, 'Rota não encontrada');
       }
+      const avaliacao = await this.avaliacoes.handle(request, u);
+      if (avaliacao) return avaliacao;
+      if (caminho === '/atividades' && req.method === 'GET') return this.ok(this.aprendizagem.listar(u));
+      if (caminho === '/atividades' && req.method === 'POST') return this.ok(this.aprendizagem.criar(u, req.body), 201);
+      const atividade = /^\/atividades\/(\d+)(?:\/entregas(?:\/(\d+)\/(nota|arquivo))?)?$/.exec(caminho);
+      if (atividade) {
+        const id = Number(atividade[1]);
+        if (caminho.endsWith('/entregas')) {
+          if (req.method === 'GET') return this.ok(this.aprendizagem.entregas(u, id));
+          if (req.method === 'POST') return this.ok(this.aprendizagem.enviar(u, id, req.body), 201);
+        } else if (atividade[2]) {
+          if (req.method === 'PUT' && atividade[3] === 'nota')
+            return this.ok(this.aprendizagem.avaliar(u, id, Number(atividade[2]), req.body));
+          if (req.method === 'GET' && atividade[3] === 'arquivo') return this.ok(this.aprendizagem.arquivo(u, id, Number(atividade[2])));
+        } else {
+          if (req.method === 'PUT') return this.ok(this.aprendizagem.editar(u, id, req.body));
+          if (req.method === 'DELETE') return this.ok(this.aprendizagem.excluir(u, id));
+        }
+      }
+      if (caminho === '/biblioteca' && req.method === 'GET') return this.ok(this.biblioteca.listar(u));
+      if (caminho === '/biblioteca' && req.method === 'POST') return this.ok(this.biblioteca.criar(u, req.body), 201);
+      const material = /^\/biblioteca\/(\d+)(?:\/(arquivo|versionar))?$/.exec(caminho);
+      if (material) {
+        const id = Number(material[1]);
+        if (req.method === 'GET' && material[2] === 'arquivo') return this.ok(this.biblioteca.arquivo(u, id));
+        if (req.method === 'POST' && material[2] === 'versionar') return this.ok(this.biblioteca.criar(u, req.body, id), 201);
+        if (req.method === 'PUT' && !material[2]) return this.ok(this.biblioteca.estado(u, id, req.body));
+      }
       if (caminho === '/academico/aulas' && req.method === 'GET') return this.ok(this.diario.listar(u));
       if (caminho === '/academico/aulas' && req.method === 'POST') return this.ok(this.diario.criar(u, req.body), 201);
       if (caminho === '/academico/horarios' && req.method === 'GET') return this.ok(this.diario.horarios(u));
@@ -62,6 +99,13 @@ export class AplicacaoCentral {
         if (req.method === 'GET' && aula[2] === 'alunos') return this.ok(this.diario.alunos(u, id));
         if (req.method === 'PUT' && !aula[2]) return this.ok(this.diario.atualizar(u, id, req.body));
         if (req.method === 'POST' && aula[2] === 'chamada') return this.ok(this.diario.chamada(u, id, req.body));
+      }
+      if (u.papel === 'professor' && req.method === 'GET' && caminho === '/turmas') return this.ok(this.academico.turmas(u));
+      const detalheTurma = /^\/turmas\/(\d+)$/.exec(caminho);
+      if (u.papel === 'professor' && req.method === 'GET' && detalheTurma) {
+        const id = Number(detalheTurma[1]);
+        this.academico.exigirTurma(u, id);
+        return this.ok({ ...this.academico.turmas(u).find((t) => t.id === id), alunos: this.academico.alunos(u, id) });
       }
       if (caminho === '/portal/turmas' && req.method === 'GET') return this.ok(this.academico.turmas(u));
       const turma = /^\/portal\/turmas\/(\d+)\/alunos$/.exec(caminho);
@@ -145,7 +189,11 @@ export class AplicacaoCentral {
     } catch (err) {
       if (err instanceof HttpError) return { ok: false, status: err.status, erro: err.erro };
       if (err instanceof z.ZodError) return { ok: false, status: 422, erro: 'Dados inválidos. Confira os campos e os limites informados.' };
+      if (err instanceof Error && err.message === 'ARQUIVO_INVALIDO')
+        return { ok: false, status: 422, erro: 'Arquivo inválido: confira formato, conteúdo e limite de 5 MB' };
       if (err instanceof Error && err.message === 'TURMA_NAO_AUTORIZADA') return { ok: false, status: 403, erro: 'Turma não autorizada' };
+      if (err instanceof Error && err.message === 'VERSAO_CONFLITO')
+        return { ok: false, status: 409, erro: 'Registro alterado. Recarregue antes de salvar.' };
       if (err instanceof Error && /UNIQUE|FOREIGN KEY|CHECK/.test(err.message))
         return { ok: false, status: 422, erro: 'Dados incompatíveis ou já cadastrados' };
       console.error('[api] falha interna');

@@ -77,6 +77,23 @@ function registrarIpc(): void {
     return api.handle(req);
   });
 
+  ipcMain.handle('file:save-binary', async (event, nome: unknown, base64: unknown) => {
+    if (!origemConfiavel(event)) throw new Error('Origem não autorizada');
+    if (typeof nome !== 'string' || typeof base64 !== 'string' || base64.length > 7_000_000) throw new Error('Arquivo inválido');
+    const padrao = basename(nome),
+      ext = extname(padrao).slice(1).toLowerCase();
+    if (!['pdf', 'png', 'jpg', 'jpeg', 'mp3', 'ogg', 'wav'].includes(ext)) throw new Error('Formato não permitido');
+    const bytes = Buffer.from(base64, 'base64');
+    if (bytes.toString('base64') !== base64) throw new Error('Arquivo inválido');
+    const r = await dialog.showSaveDialog({
+      defaultPath: join(app.getPath('documents'), padrao),
+      filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+    });
+    if (r.canceled || !r.filePath) return null;
+    if (extname(r.filePath).slice(1).toLowerCase() !== ext) throw new Error('Mantenha a extensão original do arquivo');
+    await writeFile(r.filePath, bytes);
+    return r.filePath;
+  });
   ipcMain.handle('file:save', async (event, defaultName: unknown, content: unknown): Promise<string | null> => {
     if (!origemConfiavel(event)) throw new Error('Origem não autorizada');
     if (typeof content !== 'string') throw new Error('Conteúdo inválido para salvar');

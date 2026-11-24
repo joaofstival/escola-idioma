@@ -19,6 +19,7 @@ export interface EscolaBridge {
   request<T = unknown>(req: ApiRequest): Promise<ApiResponse<T>>;
   /** Abre diálogo "Salvar como" e grava o conteúdo. Retorna o caminho ou null se cancelado. */
   saveFile(defaultName: string, content: string): Promise<string | null>;
+  saveBinary(defaultName: string, base64: string): Promise<string | null>;
   /** Backup: "Salvar como" nativo e cópia consistente do banco. */
   exportarBackup(): Promise<ResultadoBackupIpc>;
   /** Backup: escolhe um arquivo .db, valida, pede confirmação nativa e reabre o app com os dados restaurados. */
@@ -283,6 +284,9 @@ export interface EvaluationForm {
 }
 
 export interface Avaliacao {
+  publicada?: boolean | number;
+  finalidade?: string;
+  autor_id?: number | null;
   id: number;
   turma_id: number;
   turma_nome?: string;

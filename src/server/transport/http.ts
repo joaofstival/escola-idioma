@@ -6,13 +6,13 @@ export interface Aplicacao {
   handle(request: ApiRequest, token?: string): Promise<ApiResponse>;
 }
 
-async function corpo(req: IncomingMessage): Promise<unknown> {
+async function corpo(req: IncomingMessage, limite = 1_048_576): Promise<unknown> {
   let tamanho = 0;
   const partes: Buffer[] = [];
   for await (const parte of req) {
     const buffer = Buffer.from(parte);
     tamanho += buffer.length;
-    if (tamanho > 1_048_576) throw new Error('LIMITE');
+    if (tamanho > limite) throw new Error('LIMITE');
     partes.push(buffer);
   }
   return partes.length ? JSON.parse(Buffer.concat(partes).toString('utf8')) : undefined;
@@ -38,7 +38,14 @@ export function criarServidorHttp(aplicacao: Aplicacao) {
       const authorization = req.headers.authorization;
       const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined;
       const r = await aplicacao.handle(
-        { method: req.method as HttpMethod, path: url.pathname.slice(7) + url.search, body: await corpo(req) },
+        {
+          method: req.method as HttpMethod,
+          path: url.pathname.slice(7) + url.search,
+          body: await corpo(
+            req,
+            url.pathname.startsWith('/api/v1/biblioteca') || url.pathname.includes('/entregas') ? 10_000_000 : 1_048_576,
+          ),
+        },
         token,
       );
       enviar(r);

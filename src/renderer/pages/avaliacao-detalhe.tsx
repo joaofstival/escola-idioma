@@ -36,6 +36,7 @@ export function AvaliacaoDetalhe() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const [versao, setVersao] = useState(0);
+  const [rascunho, setRascunho] = useState<EvaluationForm | null>(null);
   const q = useQuery(() => api.get<Avaliacao>(`/avaliacoes/${id}`), [id, versao]);
   const turmas = useQuery(() => api.get<TurmaOpcao[]>('/turmas'), []);
   const aba = ['perguntas', 'previa', 'responder', 'resultados'].includes(params.get('aba') ?? '') ? params.get('aba')! : 'perguntas';
@@ -84,6 +85,7 @@ export function AvaliacaoDetalhe() {
           Duplicar avaliação
         </Button>
       </PageHeader>
+      <Publicacao avaliacao={a} atualizar={recarregar} />
       <Tabs value={aba} onValueChange={(v) => setParams({ aba: v }, { replace: true })}>
         <TabsList>
           <TabsTrigger value="perguntas">Perguntas</TabsTrigger>
@@ -91,17 +93,18 @@ export function AvaliacaoDetalhe() {
           <TabsTrigger value="responder">Registrar resposta</TabsTrigger>
           <TabsTrigger value="resultados">Resultados ({a.total_respostas})</TabsTrigger>
         </TabsList>
-        <TabsContent value="perguntas" className="mt-6">
+        <TabsContent value="perguntas" forceMount className="mt-6 data-[state=inactive]:hidden">
           <AvaliacaoEditor
             key={`${a.id}-${a.total_respostas}`}
             avaliacao={a}
             formInicial={a.form}
             turmas={turmas.data}
             aoSalvar={recarregar}
+            aoRascunho={setRascunho}
           />
         </TabsContent>
         <TabsContent value="previa" className="mt-6">
-          <Previa form={a.form} />
+          <Previa form={rascunho ?? a.form} />
         </TabsContent>
         <TabsContent value="responder" className="mt-6">
           <AvaliacaoResponder key={a.id} avaliacao={a} aoResponder={recarregar} />
@@ -198,5 +201,54 @@ export function AvaliacaoNova() {
         aoSalvar={() => undefined}
       />
     </>
+  );
+}
+
+function Publicacao({ avaliacao: a, atualizar }: { avaliacao: Avaliacao; atualizar: () => void }) {
+  const [erro, setErro] = useState(''),
+    [enviando, setEnviando] = useState(false);
+  async function publicar(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const d = new FormData(e.currentTarget);
+    setEnviando(true);
+    try {
+      await api.post(`/avaliacoes/${a.id}/publicar`, { publicada: d.get('publicada') === 'on', finalidade: d.get('finalidade') });
+      atualizar();
+      setErro('Publicação atualizada.');
+    } catch (err) {
+      setErro(mensagemErro(err));
+    } finally {
+      setEnviando(false);
+    }
+  }
+  return (
+    <form key={a.id + '-' + a.publicada} onSubmit={publicar} className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border p-3">
+      <label htmlFor="finalidade-av">Finalidade</label>
+      <select
+        id="finalidade-av"
+        name="finalidade"
+        className="h-9 rounded border bg-background px-2"
+        defaultValue={a.finalidade ?? 'feedback'}
+      >
+        {[
+          ['feedback', 'Feedback'],
+          ['autoavaliacao', 'Autoavaliação'],
+          ['nivel', 'Avaliação de nível'],
+          ['academica', 'Avaliação acadêmica'],
+        ].map(([v, r]) => (
+          <option key={v} value={v}>
+            {r}
+          </option>
+        ))}
+      </select>
+      <label className="flex items-center gap-2">
+        <input name="publicada" type="checkbox" defaultChecked={!!a.publicada} />
+        Disponível aos alunos
+      </label>
+      <Button variant="outline" disabled={enviando}>
+        Atualizar publicação
+      </Button>
+      {erro && <p role="status">{erro}</p>}
+    </form>
   );
 }

@@ -1,3 +1,5 @@
+import Atividades from '@/pages/atividades';
+import Biblioteca from '@/pages/biblioteca';
 import Agenda from '@/pages/agenda';
 import { ProvedorSessao, useSessao } from '@/auth/sessao';
 import Login from '@/pages/login';
@@ -28,7 +30,9 @@ function RotasAdministrativas() {
     return <Navigate to="/financeiro" replace />;
   if (
     usuario?.papel === 'secretaria' &&
-    !['alunos', 'professores', 'idiomas', 'turmas', 'matriculas', 'materiais', 'agenda', 'cotacao', 'traducao'].includes(recurso)
+    !['alunos', 'professores', 'idiomas', 'turmas', 'matriculas', 'materiais', 'biblioteca', 'agenda', 'cotacao', 'traducao'].includes(
+      recurso,
+    )
   )
     return <Navigate to="/alunos" replace />;
 
@@ -37,6 +41,8 @@ function RotasAdministrativas() {
       <Routes>
         <Route element={<Shell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="atividades" element={<Atividades />} />
+          <Route path="biblioteca" element={<Biblioteca />} />
           <Route path="agenda" element={<Agenda />} />
           <Route path="usuarios" element={<Usuarios />} />
           <Route path="dashboard" element={<Painel />} />

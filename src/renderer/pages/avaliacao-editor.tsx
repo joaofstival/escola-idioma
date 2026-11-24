@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useAlteracoesPendentes } from '@/hooks/use-alteracoes-pendentes';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,10 +26,11 @@ interface Props {
   tituloInicial?: string;
   turmas: TurmaOpcao[];
   aoSalvar: (a: Avaliacao) => void;
+  aoRascunho?: (form: EvaluationForm) => void;
 }
 
 /** Editor em lista editada no lugar: um cartão aberto por vez, os demais resumidos. Travado quando já há respostas. */
-export function AvaliacaoEditor({ avaliacao, formInicial, tituloInicial, turmas, aoSalvar }: Props) {
+export function AvaliacaoEditor({ avaliacao, formInicial, tituloInicial, turmas, aoSalvar, aoRascunho }: Props) {
   const travada = avaliacao?.travada === true;
   const [titulo, setTitulo] = useState(avaliacao?.titulo ?? tituloInicial ?? '');
   const [descricao, setDescricao] = useState(avaliacao?.descricao ?? '');
@@ -42,6 +44,22 @@ export function AvaliacaoEditor({ avaliacao, formInicial, tituloInicial, turmas,
   const navigate = useNavigate();
 
   const form: EvaluationForm = { questions: perguntas };
+  const salvo = useRef(false);
+  const assinatura = JSON.stringify({ titulo, descricao, turmaId, perguntas });
+  const base = JSON.stringify({
+    titulo: avaliacao?.titulo ?? tituloInicial ?? '',
+    descricao: avaliacao?.descricao ?? '',
+    turmaId: String(avaliacao?.turma_id ?? turmas[0]?.id ?? ''),
+    perguntas: formInicial.questions,
+  });
+  useEffect(() => {
+    salvo.current = false;
+  }, [assinatura]);
+  useAlteracoesPendentes(!travada && assinatura !== base, () => salvo.current);
+  useEffect(() => {
+    aoRascunho?.({ questions: perguntas });
+  }, [perguntas, aoRascunho]);
+
   const revalidar = (t: string, p: Question[]) => {
     if (erros) setErros(validarFormulario(t, { questions: p }));
   };
@@ -76,6 +94,7 @@ export function AvaliacaoEditor({ avaliacao, formInicial, tituloInicial, turmas,
         ? await api.put<Avaliacao>(`/avaliacoes/${avaliacao.id}`, corpo)
         : await api.post<Avaliacao>('/avaliacoes', corpo);
       toast.success(`Avaliação “${salva.titulo}” salva.`);
+      salvo.current = true;
       aoSalvar(salva);
       if (!avaliacao) navigate(`/avaliacoes/${salva.id}`, { replace: true });
     } catch (err) {

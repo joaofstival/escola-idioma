@@ -1,7 +1,7 @@
 // Borda dos testes de interface: window.escola.request é a única coisa falsa (o contrato REST já é testado no backend).
 import type { ReactElement } from 'react';
 import { render } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { vi } from 'vitest';
 import { Toaster } from '@/components/ui/sonner';
 import type { ApiResponse } from '../../shared/types.ts';
@@ -42,9 +42,21 @@ export function instalarEscola(rotas: Rotas) {
 
 export function renderizar(ui: ReactElement, rota = '/') {
   return render(
-    <MemoryRouter initialEntries={[rota]}>
-      {ui}
-      <Toaster />
-    </MemoryRouter>,
+    <RouterProvider
+      router={createMemoryRouter(
+        [
+          {
+            path: '*',
+            element: (
+              <>
+                {ui}
+                <Toaster />
+              </>
+            ),
+          },
+        ],
+        { initialEntries: [rota] },
+      )}
+    />,
   );
 }

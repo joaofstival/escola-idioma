@@ -1,3 +1,9 @@
+import { Routes, Route, useLocation, Link } from 'react-router-dom';
+import { AvaliacaoDetalhe, AvaliacaoNova } from './avaliacao-detalhe';
+import MinhasAvaliacoes from './minhas-avaliacoes';
+import Avaliacoes from './avaliacoes';
+import Atividades from './atividades';
+import Biblioteca from './biblioteca';
 import Agenda from './agenda';
 import { ExtratoFinanceiro } from './extrato-financeiro';
 import { useState } from 'react';
@@ -11,6 +17,7 @@ import type { Mensalidade } from '../../shared/types';
 type Turma = { id: number; nome: string; idioma_nome: string; nivel: number; ano_letivo: number; horario: string | null };
 export default function Portal() {
   const { usuario, sair } = useSessao();
+  const location = useLocation();
   const [aba, setAba] = useState('turmas');
   const q = useQuery(() => api.get<Turma[]>('/portal/turmas'), []);
   return (
@@ -25,6 +32,15 @@ export default function Portal() {
         </Button>
       </header>
       <nav className="flex flex-wrap gap-2" aria-label="Minha área">
+        <Button variant={aba === 'avaliacoes' ? 'default' : 'outline'} onClick={() => setAba('avaliacoes')}>
+          Avaliações e feedback
+        </Button>
+        <Button variant={aba === 'atividades' ? 'default' : 'outline'} onClick={() => setAba('atividades')}>
+          Atividades e notas
+        </Button>
+        <Button variant={aba === 'biblioteca' ? 'default' : 'outline'} onClick={() => setAba('biblioteca')}>
+          Meus materiais
+        </Button>
         <Button variant={aba === 'agenda' ? 'default' : 'outline'} onClick={() => setAba('agenda')}>
           Agenda e frequência
         </Button>
@@ -37,7 +53,17 @@ export default function Portal() {
           </Button>
         )}
       </nav>
-      {aba === 'agenda' ? (
+      {aba === 'avaliacoes' || location.pathname.startsWith('/avaliacoes') ? (
+        usuario?.papel === 'aluno' ? (
+          <MinhasAvaliacoes />
+        ) : (
+          <ProfessorAvaliacoes />
+        )
+      ) : aba === 'atividades' ? (
+        <Atividades />
+      ) : aba === 'biblioteca' ? (
+        <Biblioteca />
+      ) : aba === 'agenda' ? (
         <Agenda />
       ) : aba === 'mensalidades' ? (
         <MinhasMensalidades />
@@ -133,5 +159,20 @@ export function MinhasMensalidades() {
       )}
       <p className="text-sm text-muted-foreground">Valores em reais. Para dúvidas e regularização, procure a secretaria.</p>
     </section>
+  );
+}
+
+function ProfessorAvaliacoes() {
+  return (
+    <>
+      <Button variant="link" asChild>
+        <Link to="/avaliacoes">Lista de avaliações</Link>
+      </Button>
+      <Routes>
+        <Route path="/avaliacoes/nova" element={<AvaliacaoNova />} />
+        <Route path="/avaliacoes/:id" element={<AvaliacaoDetalhe />} />
+        <Route path="*" element={<Avaliacoes />} />
+      </Routes>
+    </>
   );
 }
