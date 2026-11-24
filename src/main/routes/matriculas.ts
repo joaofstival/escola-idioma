@@ -100,7 +100,14 @@ export function gerarMensalidades(db: Db, matriculaId: number): number {
   );
   let n = 0;
   db.transaction(() => {
-    for (const p of gerarParcelas(m.ano_letivo, m.mensalidade, m.data)) {
+    for (const p of gerarParcelas(
+      m.ano_letivo,
+      m.mensalidade,
+      m.data,
+      db.get<{ dia_vencimento: number; prazo_inicial: number }>(
+        'SELECT dia_vencimento,prazo_inicial FROM politicas_financeiras ORDER BY id DESC LIMIT 1',
+      ),
+    )) {
       const ex = db.get<{ id: number; status: string }>('SELECT id, status FROM mensalidades WHERE matricula_id = ? AND competencia = ?', [
         matriculaId,
         p.competencia,

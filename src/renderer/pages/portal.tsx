@@ -1,3 +1,4 @@
+import { ExtratoFinanceiro } from './extrato-financeiro';
 import { useState } from 'react';
 import { useSessao } from '@/auth/sessao';
 import { useQuery } from '@/hooks/use-query';
@@ -82,6 +83,7 @@ function AlunosTurma({ id }: { id: number }) {
   );
 }
 export function MinhasMensalidades() {
+  const [extrato, setExtrato] = useState<number | null>(null);
   const q = useQuery(() => api.get<Mensalidade[]>('/portal/mensalidades'), []);
   return q.error ? (
     <EstadoErro erro={q.error} aoRecarregar={q.reload} />
@@ -90,6 +92,7 @@ export function MinhasMensalidades() {
   ) : (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold">Minhas mensalidades</h2>
+      {extrato !== null && <ExtratoFinanceiro id={extrato} somenteLeitura fechar={() => setExtrato(null)} />}
       {q.data.length === 0 ? (
         <p>Nenhuma mensalidade.</p>
       ) : (
@@ -108,7 +111,13 @@ export function MinhasMensalidades() {
                 <tr key={m.id} className="border-b">
                   <td className="py-3">{m.competencia}</td>
                   <td>{data(m.vencimento)}</td>
-                  <td>{brl(m.valor_atualizado)}</td>
+                  <td>
+                    {brl(m.valor_atualizado)}
+                    {m.parcial && <span className="block text-xs">Pagamento parcial</span>}
+                    <Button variant="link" onClick={() => setExtrato(m.id)}>
+                      Ver histórico
+                    </Button>
+                  </td>
                   <td>{m.status === 'paga' ? 'Paga' : m.atrasada ? 'Em atraso' : m.status === 'cancelada' ? 'Cancelada' : 'Em aberto'}</td>
                 </tr>
               ))}

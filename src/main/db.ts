@@ -197,6 +197,9 @@ export async function openDb(opts: OpenDbOptions = {}): Promise<Db> {
 /** Apaga todos os dados (mantém o schema) e zera os contadores de id. Usado por `--seed`. */
 export function limparDados(db: Db): void {
   db.transaction(() => {
+    for (const t of ['movimentacoes_financeiras', 'auditoria', 'acessos_temporarios', 'sessoes', 'usuarios']) {
+      if (db.get("SELECT name FROM sqlite_master WHERE type='table' AND name=?", [t])) db.run(`DELETE FROM ${t}`);
+    }
     for (const t of [...TABELAS].reverse()) db.run(`DELETE FROM ${t}`);
     db.run(`DELETE FROM sqlite_sequence`);
   });

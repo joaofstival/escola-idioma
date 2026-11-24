@@ -1,3 +1,4 @@
+import { useQuery } from '@/hooks/use-query';
 import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,27 +55,40 @@ function PagamentoConteudo({ m, aoFechar, aoPagar, aoDesfazer }: Omit<Props, 'me
   });
   const [editado, setEditado] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [operacaoId] = useState(() => crypto.randomUUID());
   const dataEscolhida = useWatch({ control: form.control, name: 'data_pagamento' });
 
-  const calc = encargosEm(m, /^\d{4}-\d{2}-\d{2}$/.test(dataEscolhida) ? dataEscolhida : hoje);
+  const base = encargosEm(m, /^\d{4}-\d{2}-\d{2}$/.test(dataEscolhida) ? dataEscolhida : hoje);
+  const simulacao = useQuery(
+    () =>
+      m.saldo_centavos === undefined
+        ? Promise.resolve(null)
+        : api.get<{ saldo_centavos: number; multa_centavos: number; juros_centavos: number }>(`/mensalidades/${m.id}/simulacao`, {
+            data: dataEscolhida,
+          }),
+    [m.id, m.saldo_centavos, dataEscolhida],
+  );
+  const calc = simulacao.data
+    ? {
+        ...base,
+        total: simulacao.data.saldo_centavos / 100,
+        multa: simulacao.data.multa_centavos / 100,
+        juros: simulacao.data.juros_centavos / 100,
+      }
+    : base;
   useEffect(() => {
     if (!editado) form.setValue('valor_pago', calc.total.toFixed(2));
   }, [calc.total, editado]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function enviar(v: Valores) {
     if (enviando) return;
-    if (Math.round(numero(v.valor_pago) * 100) < Math.round(calc.total * 100)) {
-      form.setError('valor_pago', {
-        message: `Pagamento insuficiente. Informe pelo menos ${brl(calc.total)} para quitar esta mensalidade.`,
-      });
-      return;
-    }
     setEnviando(true);
     try {
       const paga = await api.post<Mensalidade>(`/mensalidades/${m.id}/pagar`, {
         valor_pago: numero(v.valor_pago),
         forma_pagamento: v.forma_pagamento,
         data_pagamento: v.data_pagamento,
+        operacao_id: operacaoId,
       });
       toast.success(`Pagamento de ${brl(paga.valor_pago)} registrado — ${m.aluno_nome ?? ''}, ${competencia(m.competencia)}`, {
         action: { label: 'Desfazer', onClick: () => aoDesfazer({ ...m, ...paga }) },
@@ -101,7 +115,7 @@ function PagamentoConteudo({ m, aoFechar, aoPagar, aoDesfazer }: Omit<Props, 'me
       <Form {...form}>
         <form id="form-pagamento" noValidate onSubmit={form.handleSubmit(enviar)} className="grid gap-4">
           <p className="text-sm text-muted-foreground">
-            Nesta versão, o pagamento deve quitar o valor integral na data escolhida. Pagamentos parciais ainda não estão disponíveis.
+            Pagamentos parciais mantêm o saldo em aberto. O valor informado não pode superar o saldo atualizado na data escolhida.
           </p>
           <div className="grid grid-cols-2 gap-4">
             <FormField
@@ -175,9 +189,9 @@ function PagamentoConteudo({ m, aoFechar, aoPagar, aoDesfazer }: Omit<Props, 'me
                 <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
                   <dt>Valor original</dt>
                   <dd className="text-right">{brl(m.valor)}</dd>
-                  <dt>Multa (2%)</dt>
+                  <dt>Multa da política contratada</dt>
                   <dd className="text-right">{brl(calc.multa)}</dd>
-                  <dt>Juros 1% a.m. ({diasTxt(calc.dias)})</dt>
+                  <dt>Juros ({diasTxt(calc.dias)})</dt>
                   <dd className="text-right">{brl(calc.juros)}</dd>
                   <dt className="font-semibold">Atualizado em {data(dataEscolhida)}</dt>
                   <dd className="text-right font-semibold">{brl(calc.total)}</dd>
@@ -200,6 +214,11 @@ function PagamentoConteudo({ m, aoFechar, aoPagar, aoDesfazer }: Omit<Props, 'me
               )}
             </div>
           }
+          {simulacao.error && (
+            <p role="alert" className="text-danger-deep">
+              {simulacao.error.message}
+            </p>
+          )}
           {form.formState.errors.root && (
             <p role="alert" className="text-sm text-danger-deep">
               {form.formState.errors.root.message}
@@ -211,7 +230,11 @@ function PagamentoConteudo({ m, aoFechar, aoPagar, aoDesfazer }: Omit<Props, 'me
         <Button type="button" variant="outline" onClick={aoFechar} disabled={enviando}>
           Cancelar
         </Button>
-        <Button type="submit" form="form-pagamento" disabled={enviando}>
+        <Button
+          type="submit"
+          form="form-pagamento"
+          disabled={enviando || (m.saldo_centavos !== undefined && (simulacao.loading || !!simulacao.error))}
+        >
           {enviando ? 'Registrando…' : 'Registrar pagamento'}
         </Button>
       </DialogFooter>

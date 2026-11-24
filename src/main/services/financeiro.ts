@@ -102,15 +102,21 @@ export interface Parcela {
  * e vencimento no dia 10. Se o ano letivo é posterior ao da matrícula (rematrícula antecipada), começa em janeiro.
  * Se a matrícula é feita depois do dia 10, a 1ª parcela vence em data + 5 dias, para não nascer atrasada.
  */
-export function gerarParcelas(anoLetivo: number, valor: number, dataMatricula: string): Parcela[] {
+export function gerarParcelas(
+  anoLetivo: number,
+  valor: number,
+  dataMatricula: string,
+  politica?: { dia_vencimento: number; prazo_inicial: number },
+): Parcela[] {
   const anoData = Number(dataMatricula.slice(0, 4));
   if (anoData > anoLetivo) throw new RangeError('A data da matrícula é posterior ao ano letivo');
   const mesInicio = anoData < anoLetivo ? 1 : Number(dataMatricula.slice(5, 7));
   const parcelas: Parcela[] = [];
   for (let mes = mesInicio; mes <= 12; mes++) {
     const competencia = `${anoLetivo}-${String(mes).padStart(2, '0')}`;
-    let vencimento = dataNoMes(competencia, DIA_VENCIMENTO);
-    if (mes === mesInicio && dataMatricula > vencimento) vencimento = somarDias(dataMatricula, PRAZO_PRIMEIRA_PARCELA);
+    let vencimento = dataNoMes(competencia, politica?.dia_vencimento ?? DIA_VENCIMENTO);
+    if (mes === mesInicio && dataMatricula > vencimento)
+      vencimento = somarDias(dataMatricula, politica?.prazo_inicial ?? PRAZO_PRIMEIRA_PARCELA);
     parcelas.push({ competencia, vencimento, valor: arredondar(valor) });
   }
   return parcelas;

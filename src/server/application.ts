@@ -1,3 +1,4 @@
+import { ServicoFinanceiro, RepositorioFinanceiro } from './modules/finance/public.ts';
 import { z } from 'zod';
 import type { Db } from '../main/db.ts';
 import { createApi } from '../main/app.ts';
@@ -11,9 +12,11 @@ export class AplicacaoCentral {
   readonly db: Db;
   readonly identidade: ServicoIdentidade;
   readonly academico: ServicoAcademico;
+  readonly financeiro: ServicoFinanceiro;
   private readonly legado: ReturnType<typeof createApi>;
   constructor(db: Db) {
     this.db = db;
+    this.financeiro = new ServicoFinanceiro(new RepositorioFinanceiro(db));
     this.legado = createApi(db);
     this.identidade = new ServicoIdentidade(new RepositorioIdentidade(db), new SegredosScrypt());
     this.academico = new ServicoAcademico(new RepositorioAcademicoSqlite(db));
@@ -50,11 +53,69 @@ export class AplicacaoCentral {
         return this.ok({ turmas: this.academico.turmas(u).length, perfil: u.papel });
       if (caminho === '/portal/mensalidades' && req.method === 'GET') {
         if (u.papel !== 'aluno') throw new HttpError(403, 'Acesso não permitido');
-        return this.legado.handle({ method: 'GET', path: `/mensalidades?aluno_id=${u.aluno_id}` });
+        return this.ok(this.financeiro.listar(u));
       }
+      const extrato = /^\/portal\/mensalidades\/(\d+)\/extrato$/.exec(caminho);
+      if (extrato && req.method === 'GET') return this.ok(this.financeiro.extrato(u, Number(extrato[1])));
       if (!this.permitido(u, req.method, caminho)) throw new HttpError(403, 'Acesso não permitido');
+      if (caminho === '/financeiro/matriculas' && req.method === 'GET') return this.ok(this.financeiro.referencias(u));
+      if (caminho === '/mensalidades' && req.method === 'POST') return this.ok(this.financeiro.criar(u, req.body), 201);
+      const consulta = new URLSearchParams(req.path.split('?')[1] ?? '');
+      const mensalidade = /^\/mensalidades\/(\d+)(?:\/(pagar|estornar|extrato|ajustar|simulacao|cancelar))?$/.exec(caminho);
+      if (caminho === '/mensalidades' && req.method === 'GET') return this.ok(this.financeiro.listar(u, consulta));
+      if (mensalidade) {
+        const id = Number(mensalidade[1]);
+        if (req.method === 'PUT' && !mensalidade[2]) return this.ok(this.financeiro.corrigir(u, id, req.body));
+        if (req.method === 'PUT' && mensalidade[2] === 'cancelar') return this.ok(this.financeiro.cancelar(u, id, req.body));
+        if (req.method === 'GET' && mensalidade[2] === 'simulacao')
+          return this.ok(this.financeiro.simular(u, id, consulta.get('data') ?? ''));
+        if (req.method === 'GET')
+          return this.ok(mensalidade[2] === 'extrato' ? this.financeiro.extrato(u, id) : this.financeiro.extrato(u, id).mensalidade);
+        if (req.method === 'POST' && mensalidade[2] === 'pagar') return this.ok(this.financeiro.pagar(u, id, req.body));
+        if (req.method === 'POST' && mensalidade[2] === 'estornar') return this.ok(this.financeiro.estornar(u, id, req.body));
+        if (req.method === 'POST' && mensalidade[2] === 'ajustar') return this.ok(this.financeiro.ajustar(u, id, req.body));
+      }
+      if (caminho === '/financeiro/configuracoes')
+        return this.ok(req.method === 'GET' ? this.financeiro.configuracao(u) : this.financeiro.configurar(u, req.body));
+      if (caminho === '/financeiro/resumo' && req.method === 'GET')
+        return this.ok(
+          this.financeiro.resumo(u, Number(consulta.get('ano') ?? new Date().getFullYear()), consulta.get('regime') === 'caixa'),
+        );
+      if (caminho === '/financeiro/inadimplentes' && req.method === 'GET') return this.ok(this.financeiro.inadimplentes(u));
       if (u.papel === 'financeiro' && caminho === '/alunos' && req.method === 'GET')
         return this.ok(this.db.all('SELECT id,nome FROM alunos ORDER BY nome'));
+      if (req.method === 'GET' && caminho === '/dashboard') {
+        const base = await this.legado.handle(request);
+        if (!base.ok) return base;
+        const hoje = new Date(),
+          ano = hoje.getFullYear(),
+          mes = hoje.getMonth();
+        const resumo = this.financeiro.resumo(u, ano, true);
+        return this.ok({
+          ...(base.data as object),
+          receita_mes: resumo.por_mes[mes].recebido,
+          a_receber_mes:
+            this.financeiro
+              .listar(u, new URLSearchParams({ competencia: `${ano}-${String(mes + 1).padStart(2, '0')}` }))
+              .reduce((n, m) => n + m.saldo_centavos, 0) / 100,
+          inadimplentes: this.financeiro.inadimplentes(u).length,
+        });
+      }
+      const historico = /^\/alunos\/(\d+)\/historico$/.exec(caminho);
+      if (req.method === 'GET' && historico) {
+        const base = await this.legado.handle(request);
+        if (!base.ok) return base;
+        const mensalidades = this.financeiro.listar(u, new URLSearchParams({ aluno_id: historico[1] }));
+        return this.ok({
+          ...(base.data as object),
+          mensalidades,
+          resumo: {
+            pago: mensalidades.reduce((n, m) => n + m.pago_centavos, 0) / 100,
+            pendente: mensalidades.filter((m) => !m.atrasada).reduce((n, m) => n + m.saldo_centavos, 0) / 100,
+            atrasado: mensalidades.filter((m) => m.atrasada).reduce((n, m) => n + m.saldo_centavos, 0) / 100,
+          },
+        });
+      }
       const r = await this.legado.handle(request, (fn) =>
         this.db.transaction(() => {
           const valor = fn();

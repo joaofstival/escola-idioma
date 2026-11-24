@@ -137,6 +137,9 @@ export interface Material {
 
 export type MensalidadeStatus = 'pendente' | 'paga' | 'cancelada';
 export interface Mensalidade {
+  saldo_centavos?: number;
+  pago_centavos?: number;
+  parcial?: boolean;
   id: number;
   matricula_id: number;
   aluno_id: number;

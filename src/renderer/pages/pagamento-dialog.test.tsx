@@ -17,8 +17,8 @@ describe('registrar pagamento', () => {
     instalarEscola({});
     abrir();
     expect(await screen.findByLabelText('Valor pago (R$)')).toHaveValue('309.00');
-    expect(screen.getByText('Multa (2%)')).toBeInTheDocument();
-    expect(screen.getByText(/Juros 1% a\.m\. \(30 dias\)/)).toBeInTheDocument();
+    expect(screen.getByText('Multa da política contratada')).toBeInTheDocument();
+    expect(screen.getByText(/Juros \(30 dias\)/)).toBeInTheDocument();
   });
 
   test('valor zero é recusado na tela, ligado ao campo, e nada é enviado', async () => {
@@ -43,6 +43,7 @@ describe('registrar pagamento', () => {
       valor_pago: 309,
       forma_pagamento: 'boleto',
       data_pagamento: '2026-04-09',
+      operacao_id: expect.any(String),
     });
   });
 
@@ -55,15 +56,15 @@ describe('registrar pagamento', () => {
   });
 });
 
-test('pagamento insuficiente é recusado antes do envio e mantém o diálogo aberto', async () => {
-  const api = instalarEscola({});
+test('pagamento parcial é enviado com identificador de operação', async () => {
+  const api = instalarEscola({ 'POST /mensalidades/1/pagar': { data: { ...atrasada, status: 'pendente', parcial: true, valor_pago: 1 } } });
   abrir();
   const valor = await screen.findByLabelText('Valor pago (R$)');
   await userEvent.clear(valor);
   await userEvent.type(valor, '1');
   await userEvent.click(screen.getByRole('button', { name: 'Registrar pagamento' }));
-  expect(await screen.findByText(/Pagamento insuficiente/)).toBeInTheDocument();
-  expect(valor).toHaveAttribute('aria-invalid', 'true');
-  expect(screen.getByRole('dialog')).toBeInTheDocument();
-  expect(api.de('POST', '/mensalidades/1/pagar')).toHaveLength(0);
+  await waitFor(() => expect(api.de('POST', '/mensalidades/1/pagar')).toHaveLength(1));
+  expect(api.de('POST', '/mensalidades/1/pagar')[0].corpo).toEqual(
+    expect.objectContaining({ valor_pago: 1, operacao_id: expect.any(String) }),
+  );
 });

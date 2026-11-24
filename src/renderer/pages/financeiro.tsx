@@ -1,3 +1,4 @@
+import { ExtratoFinanceiro, ConfiguracaoFinanceira, NovaCobranca } from './extrato-financeiro';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Download, Undo2, Wallet } from 'lucide-react';
@@ -39,6 +40,7 @@ function explicacaoEncargos(m: Mensalidade): string {
 }
 
 export default function Financeiro() {
+  const [historico, setHistorico] = useState<number | null>(null);
   const [params, setParams] = useSearchParams();
   const anoAtual = Number(hojeLocal().slice(0, 4));
   const [anoResumo, setAnoResumo] = useState(anoAtual);
@@ -95,6 +97,11 @@ export default function Financeiro() {
   const limpar = () => mudar({ status: null, aluno_id: null, mes: null, ano: null });
 
   async function estornar(m: Mensalidade, confirmado: boolean) {
+    if (m.saldo_centavos !== undefined) {
+      setEstornando(null);
+      setHistorico(m.id);
+      return;
+    }
     try {
       await api.post(`/mensalidades/${m.id}/estornar`);
       toast.success(confirmado ? `Pagamento estornado — ${m.aluno_nome ?? ''}, ${fmtCompetencia(m.competencia)}` : 'Pagamento desfeito');
@@ -129,7 +136,8 @@ export default function Financeiro() {
 
   return (
     <>
-      <PageHeader title="Mensalidades" description="Multa de 2% e juros de 1% ao mês pro rata sobre mensalidades vencidas.">
+      {historico !== null && <ExtratoFinanceiro id={historico} fechar={() => setHistorico(null)} atualizar={recarregar} />}
+      <PageHeader title="Mensalidades" description="Saldo, pagamentos parciais e encargos conforme a política de cada cobrança.">
         <FiltroSelect
           rotulo="Ano do resumo"
           valor={String(anoResumo)}
@@ -141,6 +149,8 @@ export default function Financeiro() {
           opcoes={anos.map((a) => ({ valor: String(a), rotulo: String(a) }))}
         />
       </PageHeader>
+      <ConfiguracaoFinanceira />
+      <NovaCobranca atualizar={recarregar} />
 
       <div className="space-y-8">
         <FinanceiroResumo
@@ -295,6 +305,12 @@ export default function Financeiro() {
                               )}
                             </TableCell>
                             <TableCell className="text-right">
+                              {m.saldo_centavos !== undefined && (
+                                <Button size="sm" variant="ghost" onClick={() => setHistorico(m.id)}>
+                                  Histórico
+                                </Button>
+                              )}
+                              {m.parcial && <span className="block text-xs text-warning-deep">Pagamento parcial</span>}
                               {m.status === 'pendente' && (
                                 <Button
                                   size="sm"
