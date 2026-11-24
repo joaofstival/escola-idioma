@@ -2,9 +2,9 @@
 import { closeSync, copyFileSync, existsSync, fsyncSync, openSync, renameSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-/** fsync do arquivo (ou da pasta, para o rename ficar durável). */
+/** Flush do conteúdo. No Windows, FlushFileBuffers exige um handle com escrita. */
 export function sincronizar(caminho: string): void {
-  const fd = openSync(caminho, 'r');
+  const fd = openSync(caminho, process.platform === 'win32' ? 'r+' : 'r');
   try {
     fsyncSync(fd);
   } finally {
@@ -12,11 +12,16 @@ export function sincronizar(caminho: string): void {
   }
 }
 
-/** Renomeia e sincroniza o arquivo e a pasta. */
+/**
+ * Publica somente conteúdo completo e sincronizado. POSIX também permite fsync da pasta.
+ * Windows não oferece esse flush de diretório pela API do Node: não tenta abrir a pasta
+ * como arquivo nem promete durabilidade do rename em queda de energia. Restaurações
+ * mantêm a origem preparada até a publicação terminar, permitindo repetição segura.
+ */
 export function renomearDuravel(tmp: string, destino: string): void {
   sincronizar(tmp);
   renameSync(tmp, destino);
-  sincronizar(dirname(destino));
+  if (process.platform !== 'win32') sincronizar(dirname(destino));
 }
 
 /** Copia para um temporário e renomeia: nunca deixa cópia parcial com o nome final; recusa se o destino existe. */

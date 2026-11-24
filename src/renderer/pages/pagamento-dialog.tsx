@@ -63,6 +63,12 @@ function PagamentoConteudo({ m, aoFechar, aoPagar, aoDesfazer }: Omit<Props, 'me
 
   async function enviar(v: Valores) {
     if (enviando) return;
+    if (Math.round(numero(v.valor_pago) * 100) < Math.round(calc.total * 100)) {
+      form.setError('valor_pago', {
+        message: `Pagamento insuficiente. Informe pelo menos ${brl(calc.total)} para quitar esta mensalidade.`,
+      });
+      return;
+    }
     setEnviando(true);
     try {
       const paga = await api.post<Mensalidade>(`/mensalidades/${m.id}/pagar`, {
@@ -94,6 +100,9 @@ function PagamentoConteudo({ m, aoFechar, aoPagar, aoDesfazer }: Omit<Props, 'me
       </DialogHeader>
       <Form {...form}>
         <form id="form-pagamento" noValidate onSubmit={form.handleSubmit(enviar)} className="grid gap-4">
+          <p className="text-sm text-muted-foreground">
+            Nesta versão, o pagamento deve quitar o valor integral na data escolhida. Pagamentos parciais ainda não estão disponíveis.
+          </p>
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}

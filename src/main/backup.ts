@@ -9,10 +9,37 @@ import { copiarSemSobrescrever, renomearDuravel } from './arquivos.ts';
 import type { Db } from './db.ts';
 import { TABELAS } from './db.ts';
 import { ULTIMA_VERSAO } from './migrations/index.ts';
-import type { BackupInfo } from '../shared/types.ts';
+import type { BackupInfo, EstadoBackup } from '../shared/types.ts';
+import { schemaBackupCompativel } from './schema-backup.ts';
 
 export const RETENCAO_AUTOMATICOS = 14;
 const NOME_RE = /^escola-(auto|manual)-(\d{4})-(\d{2})-(\d{2})-(\d{6})(?:-\d+)?\.db$/;
+
+const estados = new WeakMap<Db, EstadoBackup>();
+
+/** Estado da sessão, com último backup persistido como referência após reinício. */
+export function obterEstadoBackup(db: Db): EstadoBackup {
+  const estado = estados.get(db);
+  let ultimoSucesso = estado?.ultimoSucesso ?? null;
+  let erro = estado?.erro ?? null;
+  if (!ultimoSucesso) {
+    try {
+      ultimoSucesso = listarBackups(pastaDeBackups(db))[0]?.criadoEm ?? null;
+    } catch {
+      erro ??= 'Não foi possível consultar os backups. Verifique a permissão de acesso e tente novamente.';
+    }
+  }
+  return { ultimaTentativa: estado?.ultimaTentativa ?? null, ultimoSucesso, erro };
+}
+
+function falhaDeBackup(db: Db, agora: Date): void {
+  const anterior = estados.get(db);
+  estados.set(db, {
+    ultimaTentativa: agora.toISOString(),
+    ultimoSucesso: anterior?.ultimoSucesso ?? null,
+    erro: 'Não foi possível concluir o backup. Verifique o espaço disponível e a permissão de gravação; tente novamente.',
+  });
+}
 
 const dois = (n: number) => String(n).padStart(2, '0');
 const dataLocal = (d: Date) => `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`;
@@ -60,11 +87,18 @@ export function listarBackups(pasta: string): BackupInfo[] {
 
 /** Cria `escola-<auto|manual>-AAAA-MM-DD-HHmmss.db`. Nome repetido no mesmo segundo ganha sufixo -2, -3... */
 export function criarBackup(db: Db, pasta: string, motivo: 'auto' | 'manual', agora: Date = new Date()): BackupInfo {
-  const base = `escola-${motivo}-${dataLocal(agora)}-${horaLocal(agora)}`;
-  let nome = `${base}.db`;
-  for (let i = 2; existsSync(join(pasta, nome)); i++) nome = `${base}-${i}.db`;
-  copiarConsistente(db, join(pasta, nome), false);
-  return infoDoArquivo(pasta, nome)!;
+  try {
+    const base = `escola-${motivo}-${dataLocal(agora)}-${horaLocal(agora)}`;
+    let nome = `${base}.db`;
+    for (let i = 2; existsSync(join(pasta, nome)); i++) nome = `${base}-${i}.db`;
+    copiarConsistente(db, join(pasta, nome), false);
+    const info = infoDoArquivo(pasta, nome)!;
+    estados.set(db, { ultimaTentativa: agora.toISOString(), ultimoSucesso: agora.toISOString(), erro: null });
+    return info;
+  } catch (err) {
+    falhaDeBackup(db, agora);
+    throw err;
+  }
 }
 
 /** Mantém só os `max` automáticos mais novos; manuais (e qualquer outro arquivo) nunca são apagados. */
@@ -94,6 +128,7 @@ export function backupDiarioSeguro(
   try {
     return backupDiario(db, pasta, agora);
   } catch (err) {
+    falhaDeBackup(db, agora);
     log('[backup] falha ao criar o backup automático', err);
     return null;
   }
@@ -119,9 +154,13 @@ export function iniciarBackupAutomatico(
 export function exportarBackup(db: Db, destino: string, sobrescrever = false): void {
   if (db.file) {
     // Nunca por cima do banco vivo (nem -wal/-shm/.restaurar): a conexão aberta ficaria num arquivo desvinculado.
-    const dirDestino = realpathSync(dirname(destino));
-    const dirBanco = realpathSync(dirname(db.file));
-    if (dirDestino === dirBanco && basename(destino).startsWith(basename(db.file))) {
+    const normalizar = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
+    const dirDestino = normalizar(realpathSync(dirname(destino)));
+    const dirBanco = normalizar(realpathSync(dirname(db.file)));
+    const banco = statSync(db.file);
+    const alvo = existsSync(destino) ? statSync(destino) : null;
+    const mesmoArquivo = alvo && alvo.dev === banco.dev && alvo.ino === banco.ino;
+    if (mesmoArquivo || (dirDestino === dirBanco && normalizar(basename(destino)).startsWith(normalizar(basename(db.file))))) {
       throw new Error('Escolha outro local: este é o arquivo do próprio banco da escola');
     }
   }
@@ -145,6 +184,7 @@ export function validarArquivoDeBackup(arquivo: string): string | null {
   try {
     copiarComWal(arquivo, copia);
     d = new DatabaseSync(copia);
+    d.exec('PRAGMA trusted_schema = OFF');
     const integ = d.prepare('PRAGMA integrity_check').all() as { integrity_check: string }[];
     if (integ.length !== 1 || integ[0].integrity_check !== 'ok') return 'O arquivo está corrompido (falhou na verificação de integridade)';
     const versao = Number((d.prepare('PRAGMA user_version').get() as { user_version: number }).user_version);
@@ -155,6 +195,7 @@ export function validarArquivoDeBackup(arquivo: string): string | null {
     );
     const faltam = TABELAS.filter((t) => !nomes.has(t));
     if (faltam.length) return `O arquivo não é um banco da escola (faltam tabelas: ${faltam.join(', ')})`;
+    if (!schemaBackupCompativel(d, versao)) return 'O arquivo possui estrutura incompatível com o schema desta versão da escola';
     if (d.prepare('PRAGMA foreign_key_check').all().length)
       return 'O arquivo tem registros ligados a dados que não existem (falhou em foreign_key_check)';
     return null;
@@ -222,6 +263,8 @@ export function concluirRestauracaoPendente(userData: string, agora: Date = new 
   const atual = join(userData, 'escola.db');
   const novo = `${atual}${SUFIXO_RESTAURAR}`;
   if (!existsSync(novo)) return false;
+  const problema = validarArquivoDeBackup(novo);
+  if (problema) throw new Error(`Restauração pendente recusada: ${problema}`);
   const sufixos = ['-wal', '-shm'];
   if (existsSync(atual)) {
     const guardado = nomeLivre(`${atual}.pre-restauracao-${dataLocal(agora)}`);
@@ -246,6 +289,15 @@ export function concluirRestauracaoPendente(userData: string, agora: Date = new 
   }
   // Se caiu entre os renames: sem escola.db, só o .restaurar. Conclui a troca (nunca cria banco vazio).
   for (const s of sufixos) rmSync(atual + s, { force: true });
-  renomearDuravel(novo, atual);
+  // Não consome a pendência antes de concluir: se o rename/flush falhar, o
+  // próximo boot repete a operação com a cópia preparada e o original guardado.
+  const instalando = `${atual}.${process.pid}.instalando`;
+  try {
+    copyFileSync(novo, instalando);
+    renomearDuravel(instalando, atual);
+    rmSync(novo);
+  } finally {
+    rmSync(instalando, { force: true });
+  }
   return true;
 }

@@ -92,6 +92,13 @@ export function pagarMensalidade(db: Db, id: number, dados: DadosPagamento, hoje
   const valorInformado = v.numero('valor_pago', { min: 0.01, max: 1_000_000, rotulo: 'valor pago' });
   v.verificar();
   const valor_pago = valorInformado !== null ? arredondar(valorInformado) : calcularEncargos(atual, data).valor_atualizado;
+  const devido = calcularEncargos(atual, data).valor_atualizado;
+  if (Math.round(valor_pago * 100) < Math.round(devido * 100)) {
+    throw new HttpError(
+      422,
+      'Pagamento insuficiente: informe o valor integral atualizado na data do pagamento. Pagamentos parciais ainda não estão disponíveis.',
+    );
+  }
   db.run(
     `UPDATE mensalidades SET status = 'paga', valor_pago = :valor_pago, data_pagamento = :data, forma_pagamento = :forma
      WHERE id = :id`,

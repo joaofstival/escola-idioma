@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DatabaseBackup, Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/page-header';
@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@/hooks/use-query';
 import { api, mensagemErro } from '@/lib/api';
-import type { BackupInfo, ResultadoBackupIpc } from '../../shared/types.ts';
+import type { BackupInfo, EstadoBackup, ResultadoBackupIpc } from '../../shared/types.ts';
 
 const tamanho = (b: number) =>
   b < 1024 * 1024
@@ -31,6 +31,11 @@ const quando = (iso: string) => {
 
 export default function Configuracoes() {
   const q = useQuery(() => api.get<BackupInfo[]>('/backups'), []);
+  const estado = useQuery(() => api.get<EstadoBackup>('/backups/estado'), []);
+  useEffect(() => {
+    const timer = setInterval(estado.reload, 30_000);
+    return () => clearInterval(timer);
+  }, [estado.reload]);
   const [criando, setCriando] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
@@ -47,6 +52,7 @@ export default function Configuracoes() {
       toast.error(`Não foi possível fazer o backup. ${mensagemErro(err)}`);
     } finally {
       setCriando(false);
+      estado.reload();
     }
   }
 
@@ -109,9 +115,33 @@ export default function Configuracoes() {
           </div>
         </div>
 
+        {estado.error ? (
+          <EstadoErro erro={estado.error} aoRecarregar={estado.reload} titulo="Não foi possível consultar a situação do backup." />
+        ) : (
+          estado.data && (
+            <div className="space-y-2">
+              <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
+                <div>
+                  <dt>Última tentativa</dt>
+                  <dd>{estado.data.ultimaTentativa ? quando(estado.data.ultimaTentativa) : 'Nenhuma nesta sessão'}</dd>
+                </div>
+                <div>
+                  <dt>Último backup concluído</dt>
+                  <dd>{estado.data.ultimoSucesso ? quando(estado.data.ultimoSucesso) : 'Nenhum'}</dd>
+                </div>
+              </dl>
+              {estado.data.erro && (
+                <p role="alert" className="rounded-xl border border-danger-deep/30 bg-danger-soft p-4 text-danger-deep">
+                  {estado.data.erro} Use “Fazer backup agora” para tentar novamente. O aviso só desaparece após um backup concluído.
+                </p>
+              )}
+            </div>
+          )
+        )}
+
         {erroRestaurar && (
           <p role="alert" className="rounded-xl border border-danger-deep/30 bg-danger-soft p-4 text-danger-deep">
-            Nada foi restaurado e seus dados atuais continuam intactos. {erroRestaurar}
+            Não foi possível concluir a preparação da restauração. {erroRestaurar}
           </p>
         )}
 
@@ -120,7 +150,7 @@ export default function Configuracoes() {
         ) : !q.loading && itens.length === 0 ? (
           <EstadoVazio
             titulo="Nenhum backup ainda."
-            descricao="O primeiro backup automático é feito na próxima vez que o aplicativo abrir. Você pode fazer um agora."
+            descricao="Nenhuma cópia está disponível nesta pasta. Consulte a situação acima e faça um backup agora."
           >
             <Button onClick={() => void fazerAgora()} disabled={criando}>
               Fazer backup agora

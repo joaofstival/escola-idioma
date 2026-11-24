@@ -2,7 +2,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import { writeFile } from 'node:fs/promises';
-import { mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { openDb, limparDados } from './db.ts';
@@ -43,6 +43,7 @@ function origemConfiavel(event: IpcMainInvokeEvent): boolean {
 async function iniciarBanco(): Promise<void> {
   const userData = app.getPath('userData');
   // Restauração pedida na sessão anterior: troca os arquivos antes de abrir o banco.
+  const bancoNovo = !existsSync(join(userData, 'escola.db'));
   const restaurou = concluirRestauracaoPendente(userData);
   db = await openDb({ file: join(userData, 'escola.db') });
   const forcarSeed = process.argv.includes('--seed');
@@ -51,7 +52,7 @@ async function iniciarBanco(): Promise<void> {
     console.log('[seed] dados apagados; recriando dados de exemplo');
   }
   // Banco restaurado, mesmo vazio, nunca é coberto por dados de exemplo.
-  if (forcarSeed || !restaurou) {
+  if (forcarSeed || (!restaurou && bancoNovo)) {
     const r = seed(db);
     if (r.populado) console.log('[seed] banco populado com dados de exemplo', r.contagem);
   }

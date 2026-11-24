@@ -1,13 +1,17 @@
-import { test } from 'node:test';
+import { test, mock } from 'node:test';
+import fs from 'node:fs';
+import type { PathLike } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openDb } from './db.ts';
+import { openDb, TABELAS } from './db.ts';
 import type { Db } from './db.ts';
 import {
   criarBackup,
+  obterEstadoBackup,
   listarBackups,
   aplicarRetencao,
   backupDiario,
@@ -293,5 +297,136 @@ test('exportar recusa o arquivo do próprio banco (e seus -wal/-shm)', async () 
     }
     exportarBackup(db, join(dir, 'outro.db'), true);
     db.close();
+  });
+});
+
+test('recusa schema adulterado e preserva o banco atual', async () => {
+  await comPasta(async (dir) => {
+    const atual = join(dir, 'escola.db');
+    await bancoCom(atual, 'Intacto');
+    const antes = readFileSync(atual);
+    const falso = join(dir, 'schema-errado.db');
+    const d = new DatabaseSync(falso);
+    for (const tabela of TABELAS) d.exec(`CREATE TABLE ${tabela} (coluna_errada TEXT)`);
+    d.exec('PRAGMA user_version = 1');
+    d.close();
+    assert.match(validarArquivoDeBackup(falso) ?? '', /estrutura|schema/i);
+    assert.throws(() => prepararRestauracao(falso, dir), /estrutura|schema/i);
+    assert.ok(readFileSync(atual).equals(antes));
+    assert.equal(existsSync(`${atual}.restaurar`), false);
+  });
+});
+
+test('recusa triggers e views não previstos mesmo com as tabelas corretas', async () => {
+  await comPasta(async (dir) => {
+    for (const [nome, sql] of [
+      ['trigger', 'CREATE TRIGGER oculto AFTER INSERT ON alunos BEGIN DELETE FROM alunos WHERE id <> NEW.id; END'],
+      ['view', 'CREATE VIEW oculta AS SELECT * FROM alunos'],
+    ]) {
+      const arquivo = join(dir, `${nome}.db`);
+      await bancoCom(arquivo, 'Aluno');
+      const d = new DatabaseSync(arquivo);
+      d.exec(sql);
+      d.close();
+      assert.match(validarArquivoDeBackup(arquivo) ?? '', /estrutura|schema/i);
+    }
+  });
+});
+
+test('aceita backup legado original sem modificar a origem', async () => {
+  const arquivo = new URL('./fixtures/escola-v1-antigo.db', import.meta.url);
+  const antes = readFileSync(arquivo);
+  const { fileURLToPath } = await import('node:url');
+  assert.equal(validarArquivoDeBackup(fileURLToPath(arquivo)), null);
+  assert.ok(readFileSync(arquivo).equals(antes));
+});
+
+test('pendência adulterada entre preparação e reinício não substitui o banco', async () => {
+  await comPasta(async (dir) => {
+    const atual = join(dir, 'escola.db');
+    const origem = join(dir, 'origem.db');
+    await bancoCom(atual, 'Intacto');
+    await bancoCom(origem, 'Novo');
+    prepararRestauracao(origem, dir);
+    writeFileSync(`${atual}.restaurar`, 'arquivo adulterado');
+    const antes = readFileSync(atual);
+    assert.throws(() => concluirRestauracaoPendente(dir), /restauração|SQLite|integridade/i);
+    assert.ok(readFileSync(atual).equals(antes));
+    assert.ok(existsSync(`${atual}.restaurar`), 'mantém pendência para diagnóstico');
+  });
+});
+
+test('estado expõe falha persistente até nova cópia concluir e mantém último sucesso', async () => {
+  await comPasta(async (dir) => {
+    const db = await openDb({ file: join(dir, 'escola.db') });
+    try {
+      assert.deepEqual(obterEstadoBackup(db), { ultimaTentativa: null, ultimoSucesso: null, erro: null });
+      criarBackup(db, pastaDeBackups(db), 'auto', em(17));
+      const sucesso = obterEstadoBackup(db).ultimoSucesso;
+      const bloqueado = join(dir, 'bloqueado');
+      writeFileSync(bloqueado, 'arquivo onde seria uma pasta');
+      assert.equal(
+        backupDiarioSeguro(db, bloqueado, em(18), () => {}),
+        null,
+      );
+      const falha = obterEstadoBackup(db);
+      assert.ok(falha.erro);
+      assert.equal(falha.ultimaTentativa, em(18).toISOString());
+      assert.equal(falha.ultimoSucesso, sucesso);
+      const resposta = await createApi(db).handle({ method: 'GET', path: '/backups/estado' });
+      assert.ok(resposta.ok);
+      assert.deepEqual(resposta.data, falha);
+      criarBackup(db, pastaDeBackups(db), 'manual', em(18, 12));
+      assert.equal(obterEstadoBackup(db).erro, null);
+      assert.equal(obterEstadoBackup(db).ultimoSucesso, em(18, 12).toISOString());
+    } finally {
+      db.close();
+    }
+  });
+});
+
+test('exportar recusa alias por hard link do banco vivo', async () => {
+  await comPasta(async (dir) => {
+    const { linkSync } = await import('node:fs');
+    const db = await openDb({ file: join(dir, 'escola.db') });
+    try {
+      const alias = join(dir, 'outro-nome.db');
+      linkSync(db.file!, alias);
+      assert.throws(() => exportarBackup(db, alias, true), /próprio banco/);
+      if (process.platform === 'win32') {
+        assert.throws(() => exportarBackup(db, join(dir, 'ESCOLA.DB'), true), /próprio banco/);
+      }
+    } finally {
+      db.close();
+    }
+  });
+});
+
+test('falha após a troca mantém a origem preparada e permite concluir no próximo boot', async () => {
+  await comPasta(async (dir) => {
+    const atual = join(dir, 'escola.db');
+    const origem = join(dir, 'origem.db');
+    await bancoCom(atual, 'Original');
+    await bancoCom(origem, 'Restaurado');
+    prepararRestauracao(origem, dir);
+    const renomear = fs.renameSync;
+    mock.method(fs, 'renameSync', (de: PathLike, para: PathLike) => {
+      renomear(de, para);
+      if (String(para) === atual) throw new Error('Falha simulada após publicar o arquivo');
+    });
+    syncBuiltinESMExports();
+    try {
+      assert.throws(() => concluirRestauracaoPendente(dir, em(17)), /Falha simulada/);
+    } finally {
+      mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+    assert.ok(existsSync(`${atual}.restaurar`), 'não perde a intenção de restauração');
+    assert.deepEqual(lerNomes(`${atual}.pre-restauracao-2026-11-17`), ['Original']);
+    assert.equal(concluirRestauracaoPendente(dir, em(17)), true);
+    assert.deepEqual(lerNomes(atual), ['Restaurado']);
+    assert.equal(existsSync(`${atual}.restaurar`), false);
+    assert.deepEqual(lerNomes(`${atual}.pre-restauracao-2026-11-17`), ['Original'], 'não sobrescreve a cópia original');
+    assert.ok(!readdirSync(dir).some((nome) => nome.endsWith('.instalando') || nome.endsWith('.tmp')));
   });
 });

@@ -33,6 +33,13 @@ export interface BackupInfo {
   tipo: 'auto' | 'manual';
 }
 
+/** Saúde de backup (GET /backups/estado), sem caminhos ou detalhes internos. */
+export interface EstadoBackup {
+  ultimaTentativa: string | null;
+  ultimoSucesso: string | null;
+  erro: string | null;
+}
+
 /** Resultado de exportarBackup/restaurarBackup. `cancelado` = o usuário fechou o diálogo (não é erro). */
 export type ResultadoBackupIpc = { ok: true; arquivo: string } | { ok: false; cancelado: boolean; erro?: string };
 

@@ -54,3 +54,16 @@ describe('registrar pagamento', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
+
+test('pagamento insuficiente é recusado antes do envio e mantém o diálogo aberto', async () => {
+  const api = instalarEscola({});
+  abrir();
+  const valor = await screen.findByLabelText('Valor pago (R$)');
+  await userEvent.clear(valor);
+  await userEvent.type(valor, '1');
+  await userEvent.click(screen.getByRole('button', { name: 'Registrar pagamento' }));
+  expect(await screen.findByText(/Pagamento insuficiente/)).toBeInTheDocument();
+  expect(valor).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(api.de('POST', '/mensalidades/1/pagar')).toHaveLength(0);
+});
