@@ -125,3 +125,10 @@ export function escalaEixo(max: number): { topo: number; passo: number } {
   const passo = [1, 2, 2.5, 5, 10].map((f) => f * pot).find((p) => p >= bruto)!;
   return { topo: passo * 4, passo };
 }
+
+/** Valor que importa em cada situação: pago, atualizado (atrasada) ou original. Nunca o saldo zerado de uma paga. */
+export function valorRelevante(m: Mensalidade): number | null {
+  if (m.status === 'cancelada') return null;
+  if (m.status === 'paga') return m.valor_pago ?? m.valor;
+  return m.atrasada ? m.valor_atualizado : m.valor;
+}

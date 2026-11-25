@@ -80,7 +80,7 @@ export default function Biblioteca() {
               <select
                 id="material-turma"
                 name="turma"
-                className="h-9 w-full rounded border bg-background"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 defaultValue={anterior?.turma_id}
                 required
               >
@@ -102,7 +102,7 @@ export default function Biblioteca() {
               <textarea
                 id="material-descricao"
                 name="descricao"
-                className="w-full rounded border bg-background p-2"
+                className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 defaultValue={anterior?.descricao}
                 maxLength={2000}
               />
@@ -117,7 +117,7 @@ export default function Biblioteca() {
             </div>
             <div>
               <Label htmlFor="material-estado">Situação</Label>
-              <select id="material-estado" name="estado" className="h-9 w-full rounded border bg-background">
+              <select id="material-estado" name="estado" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
                 <option value="rascunho">Rascunho</option>
                 <option value="publicado">Publicado para a turma</option>
               </select>

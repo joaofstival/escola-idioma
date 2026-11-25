@@ -1,5 +1,5 @@
 import { useSessao } from '@/auth/sessao';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   BookOpen,
@@ -92,12 +92,12 @@ function Navegacao({ aoNavegar }: { aoNavegar?: () => void }) {
         ].includes(rota));
   return (
     <nav aria-label="Principal" className="flex flex-col gap-4 px-3 pb-4">
-      {NAVEGACAO.map((g) => (
-        <div key={g.grupo} className="flex flex-col gap-1">
-          <div className="px-3 text-xs font-medium text-muted-foreground">{g.grupo}</div>
-          {g.itens
-            .filter((i) => permitida(i.rota))
-            .map(({ rota, rotulo, icone: Icone }) => (
+      {NAVEGACAO.map((g) => ({ ...g, itens: g.itens.filter((i) => permitida(i.rota)) }))
+        .filter((g) => g.itens.length > 0)
+        .map((g) => (
+          <div key={g.grupo} className="flex flex-col gap-1">
+            <div className="px-3 text-xs font-medium text-muted-foreground">{g.grupo}</div>
+            {g.itens.map(({ rota, rotulo, icone: Icone }) => (
               <NavLink
                 key={rota}
                 to={`/${rota}`}
@@ -113,14 +113,14 @@ function Navegacao({ aoNavegar }: { aoNavegar?: () => void }) {
                 {rotulo}
               </NavLink>
             ))}
-        </div>
-      ))}
+          </div>
+        ))}
     </nav>
   );
 }
 
 /** Janela: barra lateral fixa de 240px (menu recolhível em janela estreita) + área de conteúdo branca. */
-export function Shell() {
+export function Moldura({ navegacao, children }: { navegacao: (aoNavegar: () => void) => ReactNode; children: ReactNode }) {
   const { pathname } = useLocation();
   const { usuario, sair } = useSessao();
   // O menu aberto vale só para a rota em que foi aberto: ao navegar, fecha sozinho.
@@ -139,7 +139,7 @@ export function Shell() {
         <div className="flex h-14 items-center gap-2 px-6 text-base font-semibold">
           Escola<span className="text-primary">Idiomas</span>
         </div>
-        <Navegacao aoNavegar={() => setAberto(false)} />
+        {navegacao(() => setAberto(false))}
         <div className="mt-auto space-y-2 border-t p-4">
           <p className="truncate text-sm">{usuario?.nome}</p>
           <Button variant="outline" onClick={() => void sair()}>
@@ -154,10 +154,23 @@ export function Shell() {
             {aberto ? <X /> : <Menu />}
           </Button>
         </div>
-        <main className="mx-auto w-full max-w-[1200px] flex-1 p-4 md:p-8">
-          <Outlet />
-        </main>
+        <main className="mx-auto w-full max-w-[1200px] flex-1 p-4 md:p-8">{children}</main>
       </div>
     </div>
   );
 }
+
+export function Shell() {
+  return (
+    <Moldura navegacao={(aoNavegar) => <Navegacao aoNavegar={aoNavegar} />}>
+      <Outlet />
+    </Moldura>
+  );
+}
+
+/** Item de menu no padrão da barra lateral, para navegação por estado (área do aluno/professor). */
+export const classeItemMenu = (ativo: boolean) =>
+  cn(
+    'flex h-9 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium transition-colors',
+    ativo ? 'bg-accent text-primary' : 'text-foreground hover:bg-accent/60',
+  );

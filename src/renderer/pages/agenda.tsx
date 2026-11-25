@@ -59,7 +59,7 @@ export default function Agenda() {
   const campos = (horario = false) => (
     <>
       <Label htmlFor={'turma-' + horario}>Turma</Label>
-      <select id={'turma-' + horario} name="turma" className="h-9 rounded border bg-background" required>
+      <select id={'turma-' + horario} name="turma" className="h-9 rounded-md border border-input bg-background px-3 text-sm" required>
         {turmas.data?.map((t) => (
           <option key={t.id} value={t.id}>
             {t.nome}
@@ -69,7 +69,7 @@ export default function Agenda() {
       {horario ? (
         <>
           <Label htmlFor="dia-semana">Dia da semana</Label>
-          <select id="dia-semana" name="dia" className="h-9 rounded border bg-background">
+          <select id="dia-semana" name="dia" className="h-9 rounded-md border border-input bg-background px-3 text-sm">
             {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((d, i) => (
               <option key={d} value={i}>
                 {d}
@@ -103,7 +103,7 @@ export default function Agenda() {
       {!horario && (
         <>
           <Label htmlFor="reposicao">Reposição de aula cancelada (opcional)</Label>
-          <select id="reposicao" name="reposicao" className="h-9 rounded border bg-background">
+          <select id="reposicao" name="reposicao" className="h-9 rounded-md border border-input bg-background px-3 text-sm">
             <option value="">Não é reposição</option>
             {q.data
               ?.filter((a) => a.status === 'cancelada')
@@ -221,7 +221,7 @@ function EditarAula({ aula, gestao, fechar, atualizar }: { aula: Aula; gestao: b
           <select
             id="status-aula"
             name="status"
-            className="h-9 w-full border bg-background"
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             defaultValue={gestao ? aula.status : 'realizada'}
           >
             {(gestao ? ['prevista', 'realizada', 'cancelada'] : ['realizada']).map((s) => (
@@ -232,7 +232,7 @@ function EditarAula({ aula, gestao, fechar, atualizar }: { aula: Aula; gestao: b
           <textarea
             id="conteudo-aula"
             name="conteudo"
-            className="min-h-24 w-full rounded border bg-background p-2"
+            className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             maxLength={5000}
             defaultValue={aula.conteudo}
           />
@@ -287,7 +287,7 @@ function Chamada({ aula, fechar, atualizar }: { aula: Aula; fechar: () => void; 
                 <select
                   id={'presenca-' + a.id}
                   name={'aluno-' + a.id}
-                  className="h-9 w-full rounded border bg-background"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   defaultValue={a.status ?? 'presente'}
                 >
                   <option value="presente">Presente</option>
@@ -369,7 +369,12 @@ function Transferencia() {
       <summary className="cursor-pointer font-medium">Transferir matrícula</summary>
       <form onSubmit={enviar} className="mt-3 space-y-3">
         <Label htmlFor="transferir-origem">Matrícula ativa</Label>
-        <select id="transferir-origem" name="matricula" required className="h-9 w-full border bg-background">
+        <select
+          id="transferir-origem"
+          name="matricula"
+          required
+          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
           {q.data?.map((m) => (
             <option key={m.id} value={m.id}>
               {m.aluno_nome} · {m.turma_nome}
@@ -377,7 +382,12 @@ function Transferencia() {
           ))}
         </select>
         <Label htmlFor="transferir-destino">Turma de destino (mesmo idioma e ano)</Label>
-        <select id="transferir-destino" name="destino" required className="h-9 w-full border bg-background">
+        <select
+          id="transferir-destino"
+          name="destino"
+          required
+          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
           {t.data?.map((t) => (
             <option key={t.id} value={t.id}>
               {t.nome}

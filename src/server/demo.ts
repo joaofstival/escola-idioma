@@ -31,7 +31,7 @@ if (!existsSync(resolve(pasta, 'escola.db'))) {
       const id = papel === 'aluno' ? aluno?.id : papel === 'professor' ? prof?.id : undefined;
       if (['aluno', 'professor'].includes(papel) && !id) continue;
       const conta = await app.identidade.criarConta(sessao.usuario, {
-        nome: 'Demonstração ' + papel,
+        nome: papel[0].toUpperCase() + papel.slice(1),
         email: papel + '@demo.escola',
         papel,
         ...(papel === 'aluno' ? { aluno_id: id } : papel === 'professor' ? { professor_id: id } : {}),

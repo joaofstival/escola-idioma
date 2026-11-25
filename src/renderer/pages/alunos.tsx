@@ -27,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useQuery } from '@/hooks/use-query';
 import { api, mensagemErro } from '@/lib/api';
 import { MOEDAS, brl, competencia, data, dinheiro, nivel, ou } from '@/lib/format';
+import { valorRelevante } from '@/lib/financeiro';
 import { emailOpcional, nuloSeVazio, textoObrigatorio, textoOpcional } from '@/lib/validacao';
 import type { Aluno, Conversao, HistoricoAluno, Mensalidade } from '../../shared/types.ts';
 
@@ -304,13 +305,6 @@ function StatusMensalidade({ m }: { m: Mensalidade }) {
       </>
     );
   return <StatusBadge tom="atencao">A vencer</StatusBadge>;
-}
-
-/** Valor que importa em cada situação: pago, atualizado (atrasada) ou original. */
-function valorRelevante(m: Mensalidade): number | null {
-  if (m.status === 'cancelada') return null;
-  if (m.status === 'paga') return m.valor_pago ?? m.valor;
-  return m.atrasada ? m.valor_atualizado : m.valor;
 }
 
 function Dado({ rotulo, valor }: { rotulo: string; valor: string | null | undefined }) {

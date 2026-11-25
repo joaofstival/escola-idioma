@@ -227,7 +227,7 @@ function Publicacao({ avaliacao: a, atualizar }: { avaliacao: Avaliacao; atualiz
       <select
         id="finalidade-av"
         name="finalidade"
-        className="h-9 rounded border bg-background px-2"
+        className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         defaultValue={a.finalidade ?? 'feedback'}
       >
         {[

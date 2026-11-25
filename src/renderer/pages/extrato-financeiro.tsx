@@ -109,7 +109,7 @@ export function ExtratoFinanceiro({
                 <Label htmlFor="tipo-ajuste">Novo ajuste</Label>
                 <select
                   id="tipo-ajuste"
-                  className="h-9 rounded border bg-background px-3"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={tipo}
                   onChange={(e) => setTipo(e.target.value)}
                 >
@@ -225,7 +225,7 @@ export function NovaCobranca({ atualizar }: { atualizar: () => void }) {
       <summary className="cursor-pointer font-medium">Criar cobrança excepcional</summary>
       <form onSubmit={enviar} className="mt-3 grid gap-3 sm:grid-cols-2">
         <Label htmlFor="nova-matricula">Matrícula</Label>
-        <select id="nova-matricula" name="matricula" className="h-9 border bg-background" required>
+        <select id="nova-matricula" name="matricula" className="h-9 rounded-md border border-input bg-background px-3 text-sm" required>
           <option value="">Selecione</option>
           {q.data?.map((m) => (
             <option key={m.id} value={m.id}>

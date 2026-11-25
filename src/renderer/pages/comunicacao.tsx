@@ -62,7 +62,7 @@ export default function Comunicacao() {
   return (
     <section className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Avisos e secretaria</h1>
+        <h1 className="text-xl font-semibold">Avisos e secretaria</h1>
         <p className="text-muted-foreground">Comunicados da escola e acompanhamento das suas solicitações.</p>
       </header>
       {erro && (
@@ -108,11 +108,17 @@ export default function Comunicacao() {
             </label>
             <label>
               Mensagem
-              <textarea name="texto" required minLength={3} maxLength={5000} className="w-full rounded border p-2" />
+              <textarea
+                name="texto"
+                required
+                minLength={3}
+                maxLength={5000}
+                className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
             </label>
             <label>
               Destino
-              <select name="turma" required={!gestao} className="block w-full border rounded p-2">
+              <select name="turma" required={!gestao} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">{gestao ? 'Toda a escola' : 'Escolha a turma'}</option>
                 {turmas.data?.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -124,7 +130,7 @@ export default function Comunicacao() {
             {gestao && (
               <label>
                 Perfil destinatário (deixe em branco ao escolher uma turma)
-                <select name="papel" className="block w-full rounded border p-2">
+                <select name="papel" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
                   <option value="">Todos os perfis</option>
                   {['admin', 'secretaria', 'financeiro', 'professor', 'aluno'].map((p) => (
                     <option key={p} value={p}>
@@ -151,7 +157,13 @@ export default function Comunicacao() {
           </label>
           <label>
             Descreva o pedido
-            <textarea name="texto" required minLength={5} maxLength={5000} className="w-full rounded border p-2" />
+            <textarea
+              name="texto"
+              required
+              minLength={5}
+              maxLength={5000}
+              className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
           </label>
           <Button disabled={busy}>Enviar solicitação</Button>
         </form>
@@ -219,7 +231,11 @@ function Atendimento({ pedido, gestao, atualizado }: { pedido: Pedido; gestao: b
         >
           <label>
             Situação
-            <select name="status" defaultValue={pedido.status} className="block w-full rounded border p-2">
+            <select
+              name="status"
+              defaultValue={pedido.status}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
               <option value="aberta">Aberta</option>
               <option value="em_atendimento">Em atendimento</option>
               <option value="resolvida">Resolvida</option>
@@ -227,7 +243,13 @@ function Atendimento({ pedido, gestao, atualizado }: { pedido: Pedido; gestao: b
           </label>
           <label>
             Resposta
-            <textarea name="resposta" required minLength={5} maxLength={5000} className="w-full border rounded p-2" />
+            <textarea
+              name="resposta"
+              required
+              minLength={5}
+              maxLength={5000}
+              className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
           </label>
           {erro && <p role="alert">{erro}</p>}
           <Button disabled={busy}>Registrar atendimento</Button>

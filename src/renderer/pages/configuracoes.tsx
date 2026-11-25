@@ -188,7 +188,7 @@ export default function Configuracoes() {
             autoComplete="current-password"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
-            className="rounded border p-2"
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

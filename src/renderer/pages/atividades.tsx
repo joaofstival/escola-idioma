@@ -62,7 +62,12 @@ export default function Atividades() {
           <form key={edicao?.id ?? 'nova'} onSubmit={salvar} className="mt-4 grid gap-3 sm:grid-cols-2">
             <div>
               <Label htmlFor="atividade-turma">Turma</Label>
-              <select id="atividade-turma" name="turma" className="h-9 w-full rounded border bg-background" defaultValue={edicao?.turma_id}>
+              <select
+                id="atividade-turma"
+                name="turma"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                defaultValue={edicao?.turma_id}
+              >
                 {turmas.data
                   ?.filter((t) => !edicao || t.id === edicao.turma_id)
                   .map((t) => (
@@ -81,7 +86,7 @@ export default function Atividades() {
               <textarea
                 id="atividade-descricao"
                 name="descricao"
-                className="min-h-24 w-full rounded border bg-background p-2"
+                className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 required
                 maxLength={10000}
                 defaultValue={edicao?.descricao}
@@ -109,7 +114,7 @@ export default function Atividades() {
               <select
                 id="atividade-estado"
                 name="estado"
-                className="h-9 w-full rounded border bg-background"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 defaultValue={edicao?.estado ?? 'rascunho'}
               >
                 <option value="rascunho">Rascunho</option>
@@ -239,7 +244,7 @@ function Entregas({ atividade: a }: { atividade: AtividadeEscolar }) {
   return (
     <section className="space-y-4 border-t pt-4">
       {!aluno && (
-        <details className="rounded border p-3">
+        <details className="rounded-xl border p-4">
           <summary>Registrar avaliação realizada na escola</summary>
           <form
             className="mt-3 grid gap-3"
@@ -270,7 +275,7 @@ function Entregas({ atividade: a }: { atividade: AtividadeEscolar }) {
           >
             <label>
               Aluno
-              <select name="aluno" required className="block w-full border p-2 rounded">
+              <select name="aluno" required className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">Selecione</option>
                 {alunos.data
                   ?.filter((aluno) => !q.data?.some((e) => e.aluno_id === aluno.id))
@@ -283,15 +288,33 @@ function Entregas({ atividade: a }: { atividade: AtividadeEscolar }) {
             </label>
             <label>
               Nota (0 a {a.valor_max})
-              <input name="nota" type="number" min={0} max={a.valor_max} step="0.01" required className="block w-full border p-2 rounded" />
+              <input
+                name="nota"
+                type="number"
+                min={0}
+                max={a.valor_max}
+                step="0.01"
+                required
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
             </label>
             <label>
               Devolutiva
-              <textarea name="devolutiva" maxLength={5000} className="block w-full border p-2 rounded" />
+              <textarea
+                name="devolutiva"
+                maxLength={5000}
+                className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
             </label>
             <label>
               Descrição/motivo do registro
-              <input name="motivo" required minLength={5} maxLength={500} className="block w-full border p-2 rounded" />
+              <input
+                name="motivo"
+                required
+                minLength={5}
+                maxLength={500}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
             </label>
             <label>
               <input type="checkbox" name="publicada" /> Publicar nota para o aluno
@@ -350,7 +373,7 @@ function Entregas({ atividade: a }: { atividade: AtividadeEscolar }) {
                   <textarea
                     id={'devolutiva-' + e.id}
                     name="devolutiva"
-                    className="w-full rounded border bg-background p-2"
+                    className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     defaultValue={e.devolutiva ?? ''}
                     maxLength={5000}
                   />
@@ -370,7 +393,12 @@ function Entregas({ atividade: a }: { atividade: AtividadeEscolar }) {
       {aluno && a.estado === 'publicada' && !q.data?.some((e) => e.publicada !== null) && (
         <form onSubmit={enviar} className="grid gap-3">
           <Label htmlFor={'resposta-' + a.id}>Sua resposta</Label>
-          <textarea id={'resposta-' + a.id} name="texto" className="min-h-24 w-full rounded border bg-background p-2" maxLength={20000} />
+          <textarea
+            id={'resposta-' + a.id}
+            name="texto"
+            className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            maxLength={20000}
+          />
           <Label htmlFor={'anexo-' + a.id}>Anexo opcional (até 5 MB)</Label>
           <Input id={'anexo-' + a.id} name="arquivo" type="file" accept=".pdf,.png,.jpg,.jpeg,.mp3,.ogg,.wav" />
           <Button disabled={enviando}>Enviar minha atividade</Button>
